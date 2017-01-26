@@ -1,29 +1,130 @@
 package socs.network.message;
 
-import java.io.*;
+import java.io.Serializable;
 import java.util.Vector;
-import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Defines the message format for communication between routers
+ * 
+ * @author kstricks
+ *
+ */
 public class SOSPFPacket implements Serializable {
 
-  //for inter-process communication
-  public String srcProcessIP;
-  public short srcProcessPort;
+	// for inter-process communication
+	private String srcProcessIP;
+	private int srcProcessPort;
 
-  //simulated IP address
-  public String srcIP;
-  public String dstIP;
+	// simulated IP address
+	private String srcIP;
+	private String dstIP;
 
-  //common header
-  public short sospfType; //0 - HELLO, 1 - LinkState Update
-  public String routerID;
+	// common header
+	private MessageType sospfType;
+	private String routerID;
 
-  //used by HELLO message to identify the sender of the message
-  //e.g. when router A sends HELLO to its neighbor, it has to fill this field with its own
-  //simulated IP address
-  public String neighborID; //neighbor's simulated IP address
+	// used by HELLO message to identify the sender of the message
+	// e.g. when router A sends HELLO to its neighbor, it has to fill this field
+	// with its own
+	// simulated IP address
+	private String neighborID; // sender's simulated IP address
 
-  //used by LSAUPDATE
-  public Vector<LSA> lsaArray = null;
+	// used by LSAUPDATE
+	private Vector<LSA> lsaArray = null;
+
+	private String errorMsg;
+
+	/**
+	 * Convenience initializer for errors
+	 * 
+	 * @param errMsg
+	 */
+	public SOSPFPacket(String errMsg) {
+		this.sospfType = MessageType.ERROR;
+		this.errorMsg = errMsg;
+	}
+
+	public SOSPFPacket() {
+		this.sospfType = MessageType.SUCCESS;
+	}
+
+	public SOSPFPacket(MessageType mt, String srcProcessIP, int srcProcessPort, String srcIP) {
+		this.sospfType = mt;
+		this.srcProcessIP = srcProcessIP;
+		this.srcProcessPort = srcProcessPort;
+		this.srcIP = srcIP;
+	}
+
+	public String getSrcProcessIP() {
+		return srcProcessIP;
+	}
+
+	public void setSrcProcessIP(String srcProcessIP) {
+		this.srcProcessIP = srcProcessIP;
+	}
+
+	public int getSrcProcessPort() {
+		return srcProcessPort;
+	}
+
+	public void setSrcProcessPort(int srcProcessPort) {
+		this.srcProcessPort = srcProcessPort;
+	}
+
+	public String getSrcIP() {
+		return srcIP;
+	}
+
+	public void setSrcIP(String srcIP) {
+		this.srcIP = srcIP;
+	}
+
+	public String getDstIP() {
+		return dstIP;
+	}
+
+	public void setDstIP(String dstIP) {
+		this.dstIP = dstIP;
+	}
+
+	public MessageType getSospfType() {
+		return sospfType;
+	}
+
+	public void setSospfType(MessageType sospfType) {
+		this.sospfType = sospfType;
+	}
+
+	public String getRouterID() {
+		return routerID;
+	}
+
+	public void setRouterID(String routerID) {
+		this.routerID = routerID;
+	}
+
+	public String getNeighborID() {
+		return neighborID;
+	}
+
+	public void setNeighborID(String neighborID) {
+		this.neighborID = neighborID;
+	}
+
+	public Vector<LSA> getLsaArray() {
+		return lsaArray;
+	}
+
+	public void setLsaArray(Vector<LSA> lsaArray) {
+		this.lsaArray = lsaArray;
+	}
+
+	public String getErrorMsg() {
+		return errorMsg;
+	}
+
+	public void setErrorMsg(String errorMsg) {
+		this.errorMsg = errorMsg;
+	}
 
 }
