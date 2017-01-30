@@ -6,22 +6,23 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
+import socs.network.exceptions.UnexpectedMessageException;
 import socs.network.message.MessageType;
 import socs.network.message.SOSPFPacket;
 
 public class ClientThread extends Thread {
 
 	private Router router;
-	private MessageType mt;
+	private Protocol protocol;
 	private RouterDescription source;
 	private RouterDescription dest;
 
 	// optional fields
 	private int linkPort;
 
-	public ClientThread(Router router, MessageType mt, RouterDescription source, RouterDescription dest) {
+	public ClientThread(Router router, Protocol protocol, RouterDescription source, RouterDescription dest) {
 		this.router = router;
-		this.mt = mt;
+		this.protocol = protocol;
 		this.source = source;
 		this.dest = dest;
 	}
@@ -29,23 +30,63 @@ public class ClientThread extends Thread {
 	@Override
 	public void run() {
 
-		switch (this.mt) {
-		case HELLO:
-			sendHello();
-			break;
-		case LSAUPDATE:
-			sendLsaUpdate();
+		switch (this.protocol) {
+		case HANDSHAKE:
+			handshake();
 			break;
 		case ADDLINK:
 			sendAddLink();
-			break;
-		case ERROR:
-
 			break;
 		default:
 			// error
 		}
 
+	}
+
+	/**
+	 * Contains all the logic for performing a handshake from the client's
+	 * perspective
+	 */
+	public void handshake() {
+		try (Socket socket = new Socket(dest.getProcessIPAddress(), dest.getProcessPortNumber());
+				ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
+				ObjectInputStream is = new ObjectInputStream(socket.getInputStream());) {
+
+			SOSPFPacket inPacket, outPacket;
+
+			outPacket = new SOSPFPacket(MessageType.HELLO, source.getProcessIPAddress(), source.getProcessPortNumber(),
+					source.getSimulatedIPAddress());
+
+			// send hello to server
+			os.writeObject(outPacket);
+
+			// wait for server to send us hello back
+			inPacket = (SOSPFPacket) is.readObject();
+
+			if (inPacket.getMessageType() != MessageType.HELLO) {
+				// this should never happen
+				throw new UnexpectedMessageException();
+			}
+
+			System.out.println("received hello from " + inPacket.getSrcIP() + ";\n");
+
+			// set remote router to TWO_WAY
+			this.dest.setStatus(RouterStatus.TWO_WAY);
+			System.out.println("set " + inPacket.getSrcIP() + " state to INIT;\n");
+
+			// send HELLO back to server
+			os.writeObject(outPacket);
+
+			// assume it worked!!!
+		} catch (UnknownHostException e) {
+			System.err.println("Don't know about host " + dest.getProcessIPAddress());
+			System.exit(1);
+		} catch (IOException e) {
+			System.err.println("Couldn't get I/O for the connection to " + dest.getProcessIPAddress());
+			System.exit(1);
+		} catch (ClassNotFoundException e) {
+			System.err.println("Could't read packet as an SOSPFPacket. Should never get this error...");
+		}
 	}
 
 	public void sendAddLink() {
@@ -65,7 +106,7 @@ public class ClientThread extends Thread {
 			// await a response (SUCCESS or ERROR)
 			inPacket = (SOSPFPacket) is.readObject();
 
-			if (inPacket.getSospfType() == MessageType.ERROR) {
+			if (inPacket.getMessageType() == MessageType.ERROR) {
 				// something went wrong
 				System.err.println("Error. Server said: " + inPacket.getErrorMsg());
 				// tell this router that it needs to remove the link it
@@ -158,14 +199,6 @@ public class ClientThread extends Thread {
 			System.err.println("Couldn't get I/O for the connection to " + dest.getProcessIPAddress());
 			System.exit(1);
 		}
-	}
-
-	public MessageType getMt() {
-		return mt;
-	}
-
-	public void setMt(MessageType mt) {
-		this.mt = mt;
 	}
 
 	public RouterDescription getSource() {

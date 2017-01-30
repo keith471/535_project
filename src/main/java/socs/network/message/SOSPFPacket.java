@@ -20,7 +20,7 @@ public class SOSPFPacket implements Serializable {
 	private String dstIP;
 
 	// common header
-	private MessageType sospfType;
+	private MessageType messageType;
 	private String routerID;
 
 	// used by HELLO message to identify the sender of the message
@@ -40,16 +40,16 @@ public class SOSPFPacket implements Serializable {
 	 * @param errMsg
 	 */
 	public SOSPFPacket(String errMsg) {
-		this.sospfType = MessageType.ERROR;
+		this.messageType = MessageType.ERROR;
 		this.errorMsg = errMsg;
 	}
 
 	public SOSPFPacket() {
-		this.sospfType = MessageType.SUCCESS;
+		this.messageType = MessageType.SUCCESS;
 	}
 
 	public SOSPFPacket(MessageType mt, String srcProcessIP, int srcProcessPort, String srcIP) {
-		this.sospfType = mt;
+		this.messageType = mt;
 		this.srcProcessIP = srcProcessIP;
 		this.srcProcessPort = srcProcessPort;
 		this.srcIP = srcIP;
@@ -87,12 +87,12 @@ public class SOSPFPacket implements Serializable {
 		this.dstIP = dstIP;
 	}
 
-	public MessageType getSospfType() {
-		return sospfType;
+	public MessageType getMessageType() {
+		return messageType;
 	}
 
-	public void setSospfType(MessageType sospfType) {
-		this.sospfType = sospfType;
+	public void setMessageType(MessageType sospfType) {
+		this.messageType = sospfType;
 	}
 
 	public String getRouterID() {

@@ -4,7 +4,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
 import socs.network.exceptions.NoAvailablePortsException;
-import socs.network.message.MessageType;
+import socs.network.exceptions.NoSuchLinkException;
 import socs.network.util.Configuration;
 
 /**
@@ -160,9 +160,10 @@ public class Router {
 		// send HELLO
 		for (int i = 0; i < this.ports.length; i++) {
 			if (!(this.ports[i] == null)) {
-				this.sendHello(ports[i]);
+				this.initiateHandshake(ports[i]);
 			}
 		}
+
 
 		// send LSAUPDATE
 	}
@@ -262,18 +263,33 @@ public class Router {
 		}
 	}
 
-	public void sendHello(Link l) {
-		new ClientThread(this, MessageType.HELLO, l.getRouter1(), l.getRouter2()).start();
+	public void initiateHandshake(Link l) {
+		new ClientThread(this, Protocol.HANDSHAKE, l.getRouter1(), l.getRouter2()).start();
 	}
 
 	public void sendLsaUpdate(Link l) {
-		new ClientThread(this, MessageType.LSAUPDATE, l.getRouter1(), l.getRouter2()).start();
+		new ClientThread(this, Protocol.LSAUPDATE, l.getRouter1(), l.getRouter2()).start();
 	}
 
 	public void sendAddLink(Link l, int port) {
-		ClientThread ct = new ClientThread(this, MessageType.ADDLINK, l.getRouter1(), l.getRouter2());
+		ClientThread ct = new ClientThread(this, Protocol.ADDLINK, l.getRouter1(), l.getRouter2());
 		ct.setLinkPort(port);
 		ct.start();
+	}
+
+	private Link getLinkFromSourceIp(String sourceIp) {
+		for (Link l : this.ports) {
+			if (l.getRouter2().getSimulatedIPAddress().equals(sourceIp)) {
+				return l;
+			}
+		}
+		// should never happen
+		throw new NoSuchLinkException();
+	}
+
+	public void updateLinkStatusFromSourceIp(String sourceIp, RouterStatus status) {
+		Link l = this.getLinkFromSourceIp(sourceIp);
+		l.getRouter2().setStatus(status);
 	}
 
 	// /**

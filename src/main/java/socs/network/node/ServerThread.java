@@ -6,6 +6,8 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 
 import socs.network.exceptions.NoAvailablePortsException;
+import socs.network.exceptions.UnexpectedMessageException;
+import socs.network.message.MessageType;
 import socs.network.message.SOSPFPacket;
 
 public class ServerThread extends Thread {
@@ -38,9 +40,9 @@ public class ServerThread extends Thread {
 			// listening
 			inputPacket = (SOSPFPacket) is.readObject();
 			// message received, process it
-			switch (inputPacket.getSospfType()) {
+			switch (inputPacket.getMessageType()) {
 			case HELLO:
-
+				handshake(inputPacket, is, os);
 				break;
 			case LSAUPDATE:
 
@@ -68,10 +70,41 @@ public class ServerThread extends Thread {
 		}
 	}
 
+	/**
+	 * The server received request to connect followed by a HELLO
+	 * 
+	 * @param inPacket
+	 */
+	private void handshake(SOSPFPacket inPacket, ObjectInputStream is, ObjectOutputStream os)
+			throws IOException, ClassNotFoundException {
+		System.out.println("received hello from " + inPacket.getSrcIP() + ";\n");
+		// tell the router to update its link to the client that sent HELLO to
+		// reflect that that client has been initialized
+		this.router.updateLinkStatusFromSourceIp(inPacket.getSrcIP(), RouterStatus.INIT);
+		System.out.println("set " + inPacket.getSrcIP() + " state to INIT;\n");
+		
+		// send HELLO back to the client
+		os.writeObject(new SOSPFPacket(MessageType.HELLO, this.router.getRd().getProcessIPAddress(),
+				this.router.getRd().getProcessPortNumber(), this.router.getRd().getSimulatedIPAddress()));
+		
+		// wait for a second HELLO
+		inPacket = (SOSPFPacket) is.readObject();
+
+		if (inPacket.getMessageType() != MessageType.HELLO) {
+			// this should never happen
+			throw new UnexpectedMessageException();
+		}
+
+		System.out.println("received hello from " + inPacket.getSrcIP() + ";\n");
+
+		// tell the router to update the link status again, this time to TWO_WAY
+		this.router.updateLinkStatusFromSourceIp(inPacket.getSrcIP(), RouterStatus.TWO_WAY);
+		System.out.println("set " + inPacket.getSrcIP() + " state to TWO_WAY;\n");
+	}
+
 	private void handleAddLink(SOSPFPacket packet, ObjectOutputStream os) throws IOException {
 
 		try {
-			// TODO: MIGHT HAVE SERIOUS CONCURRENCY ISSUE HERE
 			// need to get an available port and add the link all in one go
 			RouterDescription r2 = new RouterDescription(packet.getSrcProcessIP(), packet.getSrcProcessPort(),
 					packet.getSrcIP());
