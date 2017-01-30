@@ -72,17 +72,15 @@ public class ServerThread extends Thread {
 
 		try {
 			// TODO: MIGHT HAVE SERIOUS CONCURRENCY ISSUE HERE
-			int port = router.getAvailablePort();
-			// If we context switch here, then could have problems
+			// need to get an available port and add the link all in one go
 			RouterDescription r2 = new RouterDescription(packet.getSrcProcessIP(), packet.getSrcProcessPort(),
 					packet.getSrcIP());
 			Link l = new Link(router.getRd(), r2);
-			router.addLink(l, port);
+			this.router.addLink(l);
 			
 			// send back success message?
 			SOSPFPacket responsePacket = new SOSPFPacket();
 			os.writeObject(responsePacket);
-
 		} catch (NoAvailablePortsException ex) {
 			// send ERROR response packet
 			SOSPFPacket errPacket = new SOSPFPacket("No ports available!!!");

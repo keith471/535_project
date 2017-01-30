@@ -98,9 +98,10 @@ public class Router {
 			}
 			// get a "port" to add a new Link to
 			int port = this.getAvailablePort();
-			// add the link to ports
+			// optimistically add the link to ports (it will be removed if the
+			// remote router can't support it)
 			this.ports[port] = l;
-			// add the link on the remote router
+			// notify the remote router that we'd like to add a link to it
 			this.sendAddLink(l, port);
 			System.out.println("Successfully added a link to port " + port);
 		} catch (NoAvailablePortsException ex) {
@@ -109,7 +110,21 @@ public class Router {
 		}
 	}
 
-	// helper for processAttach AND for ServerThread
+	/**
+	 * Finds an empty port and adds a link to the port
+	 * 
+	 * @return the number of the port that the link was added to
+	 * @throws NoAvailablePortsException
+	 *             if this router has no more free ports
+	 */
+	public synchronized int addLink(Link l) throws NoAvailablePortsException {
+		// get an available port
+		int port = this.getAvailablePort();
+		// add it to ports
+		this.ports[port] = l;
+		return port;
+	}
+
 	public int getAvailablePort() throws NoAvailablePortsException {
 		for (int i = 0; i < this.ports.length; i++) {
 			if (this.ports[i] == null) {
@@ -261,15 +276,15 @@ public class Router {
 		ct.start();
 	}
 
-	/**
-	 * Called by ServerThreads of this Router
-	 * 
-	 * @param l
-	 * @param port
-	 */
-	public void addLink(Link l, int port) {
-		this.ports[port] = l;
-	}
+	// /**
+	// * Called by ServerThreads of this Router
+	// *
+	// * @param l
+	// * @param port
+	// */
+	// public void addLink(Link l, int port) {
+	// this.ports[port] = l;
+	// }
 
 	public void removeLinkAtPort(int port) {
 		this.ports[port] = null;

@@ -59,12 +59,17 @@ public class ClientThread extends Thread {
 			outPacket = new SOSPFPacket(MessageType.ADDLINK, source.getProcessIPAddress(),
 					source.getProcessPortNumber(), source.getSimulatedIPAddress());
 
+			// send ADDLINK request to destination router
 			os.writeObject(outPacket);
 
+			// await a response (SUCCESS or ERROR)
 			inPacket = (SOSPFPacket) is.readObject();
 
 			if (inPacket.getSospfType() == MessageType.ERROR) {
+				// something went wrong
 				System.err.println("Error. Server said: " + inPacket.getErrorMsg());
+				// tell this router that it needs to remove the link it
+				// optimistically added
 				this.router.removeLinkAtPort(this.linkPort);
 			} else {
 				System.out.println("Router at " + dest.getSimulatedIPAddress() + " successfully added link");
