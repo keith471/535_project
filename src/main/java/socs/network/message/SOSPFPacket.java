@@ -16,18 +16,15 @@ public class SOSPFPacket implements Serializable {
 	private int srcProcessPort;
 
 	// simulated IP address
-	private String srcIP;
-	private String dstIP;
+	private String srcIP; // the original source of the packet
+	private String dstIP; // the eventual destination of the packet
 
 	// common header
 	private MessageType messageType;
 	private String routerID;
 
-	// used by HELLO message to identify the sender of the message
-	// e.g. when router A sends HELLO to its neighbor, it has to fill this field
-	// with its own
-	// simulated IP address
-	private String neighborID; // sender's simulated IP address
+	// the node immediately prior to the receiving node in the chain
+	private String neighborID;
 
 	// used by LSAUPDATE
 	private Vector<LSA> lsaArray = null;
@@ -53,14 +50,11 @@ public class SOSPFPacket implements Serializable {
 		this.srcProcessIP = srcProcessIP;
 		this.srcProcessPort = srcProcessPort;
 		this.srcIP = srcIP;
+		this.neighborID = srcIP;
 	}
 
 	public String getSrcProcessIP() {
 		return srcProcessIP;
-	}
-
-	public void setSrcProcessIP(String srcProcessIP) {
-		this.srcProcessIP = srcProcessIP;
 	}
 
 	public int getSrcProcessPort() {

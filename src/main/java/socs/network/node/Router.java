@@ -3,8 +3,10 @@ package socs.network.node;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
+import socs.network.exceptions.DuplicateLinkException;
 import socs.network.exceptions.NoAvailablePortsException;
 import socs.network.exceptions.NoSuchLinkException;
+import socs.network.exceptions.SelfLinkException;
 import socs.network.util.Configuration;
 
 /**
@@ -91,56 +93,17 @@ public class Router {
 			RouterDescription rd2 = new RouterDescription(processIP, processPort, simulatedIP);
 			// create new Link object
 			Link l = new Link(this.rd, rd2);
-			// check repeat link
-			if (this.isRepeatLink(l)) {
-				System.err.println("You've already added an equivalent link");
-				return;
-			}
-			// get a "port" to add a new Link to
-			int port = this.getAvailablePort();
-			// optimistically add the link to ports (it will be removed if the
-			// remote router can't support it)
-			this.ports[port] = l;
+			int port = this.addLink(l);
 			// notify the remote router that we'd like to add a link to it
 			this.sendAddLink(l, port);
 			System.out.println("Successfully added a link to port " + port);
 		} catch (NoAvailablePortsException ex) {
-			// error, no more ports available
-			System.err.println("Error: no more ports available for router " + this.rd.getSimulatedIPAddress());
+			System.err.println("ERROR:\tno more ports available for router " + this.rd.getSimulatedIPAddress());
+		} catch (DuplicateLinkException ex) {
+			System.err.println("ERROR:\tan equivalent link has already been added (potentially by another router)");
+		} catch (SelfLinkException ex) {
+			System.err.println("ERROR:\tself-links are not permitted");
 		}
-	}
-
-	/**
-	 * Finds an empty port and adds a link to the port
-	 * 
-	 * @return the number of the port that the link was added to
-	 * @throws NoAvailablePortsException
-	 *             if this router has no more free ports
-	 */
-	public synchronized int addLink(Link l) throws NoAvailablePortsException {
-		// get an available port
-		int port = this.getAvailablePort();
-		// add it to ports
-		this.ports[port] = l;
-		return port;
-	}
-
-	public int getAvailablePort() throws NoAvailablePortsException {
-		for (int i = 0; i < this.ports.length; i++) {
-			if (this.ports[i] == null) {
-				return i;
-			}
-		}
-		throw new NoAvailablePortsException();
-	}
-
-	public boolean isRepeatLink(Link l) {
-		for (Link l2 : this.ports) {
-			if (l.equals(l2)) {
-				return true;
-			}
-		}
-		return false;
 	}
 
 	/**
@@ -148,24 +111,15 @@ public class Router {
 	 * broadcasting HELLO and LSAUPDATE to neighbors
 	 */
 	private void processStart() {
-		// R1 (this router) broadcasts HELLO to all attached routers
-		// --> following probably goes elsewhere but is what this triggers <--
-		// remote router (R2) receives HELLO: sets the status in its Link's
-		// RouterDescription of R1 (??) to INIT, then sends HELLO back to R1
-		// R1 receives HELLO from R2 and sets the status in its Link's
-		// RouterDescription of R1 (??) as TWO_WAY, and sends HELLO back to R2
-		// R2 receives HELLO from R1 and sets the status in its Link's
-		// RouterDescription of R1 (??) as TWO_WAY
 
-		// send HELLO
+		// shake hands with all routers in our ports array
 		for (int i = 0; i < this.ports.length; i++) {
 			if (!(this.ports[i] == null)) {
 				this.initiateHandshake(ports[i]);
 			}
 		}
 
-
-		// send LSAUPDATE
+		// TODO send LSAUPDATE (PA 2)
 	}
 
 	/**
@@ -216,16 +170,135 @@ public class Router {
 
 	}
 
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// PUBLIC HELPERS
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	/**
+	 * Finds an empty port and adds a link to the port
+	 * 
+	 * @return the number of the port that the link was added to
+	 * @throws NoAvailablePortsException
+	 *             if this router has no more free ports
+	 * @throws DuplicateLinkException
+	 *             if the link to be added already has been
+	 */
+	public synchronized int addLink(Link l)
+			throws NoAvailablePortsException, DuplicateLinkException, SelfLinkException {
+		// first, ensure that this is not a link back to itself
+		if (this.isSelfLink(l)) {
+			throw new SelfLinkException();
+		}
+		// second, ensure that the link is not a duplicate of one we already
+		// have
+		if (this.isDuplicateLink(l)) {
+			throw new DuplicateLinkException();
+		}
+		// get an available port
+		int port = this.getAvailablePort();
+		// add it to ports
+		this.ports[port] = l;
+		return port;
+	}
+
+	/**
+	 * Finds an available port by iterating through the ports array
+	 * 
+	 * @return the index of an available port
+	 * @throws NoAvailablePortsException
+	 *             if no ports are available
+	 */
+	public int getAvailablePort() throws NoAvailablePortsException {
+		for (int i = 0; i < this.ports.length; i++) {
+			if (this.ports[i] == null) {
+				return i;
+			}
+		}
+		throw new NoAvailablePortsException();
+	}
+
+	public void updateLinkStatusFromSourceIp(String sourceIp, RouterStatus status) {
+		Link l = this.getLinkFromSourceIp(sourceIp);
+		l.getRouter2().setStatus(status);
+	}
+
+	public void removeLinkAtPort(int port) {
+		this.ports[port] = null;
+	}
+
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// PRIVATE HELPERS
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	private boolean isSelfLink(Link l) {
+		return l.getRouter2().getProcessIPAddress().equals(this.rd.getProcessIPAddress())
+				&& l.getRouter2().getProcessPortNumber() == this.rd.getProcessPortNumber();
+	}
+
+	/**
+	 * Checks if a link is a duplicate of one already in existence
+	 * 
+	 * @param l
+	 * @return true if an equivalent link exists, false otherwise
+	 */
+	private boolean isDuplicateLink(Link l) {
+		for (Link l2 : this.ports) {
+			if (l.equals(l2)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Given a remote router's IP address, returns this router's link to the
+	 * remote router
+	 * 
+	 * @param remoteIp
+	 * @return
+	 */
+	private Link getLinkFromSourceIp(String remoteIp) {
+		for (Link l : this.ports) {
+			if (l.getRouter2().getSimulatedIPAddress().equals(remoteIp)) {
+				return l;
+			}
+		}
+		// should never happen
+		throw new NoSuchLinkException();
+	}
+
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// CLIENT SPAWNERS
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	public void initiateHandshake(Link l) {
+		new ClientThread(this, Protocol.HANDSHAKE, l.getRouter1(), l.getRouter2()).start();
+	}
+
+	public void sendLsaUpdate(Link l) {
+		new ClientThread(this, Protocol.LSAUPDATE, l.getRouter1(), l.getRouter2()).start();
+	}
+
+	public void sendAddLink(Link l, int port) {
+		ClientThread ct = new ClientThread(this, Protocol.ADDLINK, l.getRouter1(), l.getRouter2());
+		ct.setLinkPort(port);
+		ct.start();
+	}
+
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// TERMINAL
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	/**
 	 * A console for the router. General chain of commands: attach -> attach the
 	 * new router to other routers start -> starts the router by sending HELLO
 	 * messages to all connected routers
 	 */
 	public void terminal() {
-		try {
-			InputStreamReader isReader = new InputStreamReader(System.in);
-			BufferedReader br = new BufferedReader(isReader);
-			System.out.print(">> ");
+		System.out.println("Terminal for router at " + this.rd.getSimulatedIPAddress());
+		try (InputStreamReader isReader = new InputStreamReader(System.in);
+				BufferedReader br = new BufferedReader(isReader);) {
+			System.out.print("(" + this.rd.getSimulatedIPAddress() + ") >> ");
 			// read the first command
 			String command = br.readLine();
 			// process command and read another (indefinitely)
@@ -249,62 +322,23 @@ public class Router {
 				} else if (command.equals("neighbors")) {
 					// output neighbors
 					processNeighbors();
-				} else {
-					// invalid command
+				} else if (command.equals("exit")) {
 					break;
+				} else {
+					// erroneous command
+					System.err.println("ERROR: unrecognized command");
 				}
-				System.out.print(">> ");
+				System.out.print("(" + this.rd.getSimulatedIPAddress() + ") >> ");
 				command = br.readLine();
 			}
-			isReader.close();
-			br.close();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 
-	public void initiateHandshake(Link l) {
-		new ClientThread(this, Protocol.HANDSHAKE, l.getRouter1(), l.getRouter2()).start();
-	}
-
-	public void sendLsaUpdate(Link l) {
-		new ClientThread(this, Protocol.LSAUPDATE, l.getRouter1(), l.getRouter2()).start();
-	}
-
-	public void sendAddLink(Link l, int port) {
-		ClientThread ct = new ClientThread(this, Protocol.ADDLINK, l.getRouter1(), l.getRouter2());
-		ct.setLinkPort(port);
-		ct.start();
-	}
-
-	private Link getLinkFromSourceIp(String sourceIp) {
-		for (Link l : this.ports) {
-			if (l.getRouter2().getSimulatedIPAddress().equals(sourceIp)) {
-				return l;
-			}
-		}
-		// should never happen
-		throw new NoSuchLinkException();
-	}
-
-	public void updateLinkStatusFromSourceIp(String sourceIp, RouterStatus status) {
-		Link l = this.getLinkFromSourceIp(sourceIp);
-		l.getRouter2().setStatus(status);
-	}
-
-	// /**
-	// * Called by ServerThreads of this Router
-	// *
-	// * @param l
-	// * @param port
-	// */
-	// public void addLink(Link l, int port) {
-	// this.ports[port] = l;
-	// }
-
-	public void removeLinkAtPort(int port) {
-		this.ports[port] = null;
-	}
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// GETTERS AND SETTERS
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	public MasterServerThread getServer() {
 		return server;

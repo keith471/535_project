@@ -12,10 +12,6 @@ public class Link {
 	private RouterDescription router1; // the router that owns this Link object
 	private RouterDescription router2; // the remote router
 
-	// the client connection r1 has to r2
-	// we use the client to issue HELLOs and LSAUPDATEs via the Client's socket
-	// connection
-
 	public Link(RouterDescription r1, RouterDescription r2) {
 		router1 = r1;
 		router2 = r2;

@@ -3,14 +3,10 @@ package socs.network.node;
 public class RouterDescription {
 
 	// used for socket communication
-	private String processIPAddress; // actual IP address that the router is
-										// running on
-								// (127.0.0.1)
-	private int processPortNumber; // actual port that the "server" is running
-									// on
+	private String processIPAddress; // actual IP address that the router is running on (127.0.0.1)
+	private int processPortNumber;   // actual port that the "server" is running on
 	// used to identify the router in the simulated network space
-	private String simulatedIPAddress; // what will be used in the network
-										// topology
+	private String simulatedIPAddress; // what will be used in the network topology
 	// status of the router
 	private RouterStatus status;
 
@@ -19,6 +15,8 @@ public class RouterDescription {
 		this.processPortNumber = processPortNumber;
 		this.simulatedIPAddress = simulatedIPAddress;
 	}
+
+	// GETTERS AND SETTERS
 
 	public String getProcessIPAddress() {
 		return processIPAddress;
@@ -52,6 +50,8 @@ public class RouterDescription {
 		this.status = status;
 	}
 
+	// Override hashcode and equals so that we can compare links
+
 	@Override
 	public int hashCode() {
 		final int prime = 31;
@@ -63,6 +63,13 @@ public class RouterDescription {
 		return result;
 	}
 
+	/**
+	 * We want two RouterDescriptions to be considered the same if their
+	 * simulated IP address and process ports are the same
+	 * 
+	 * @param o
+	 * @return
+	 */
 	@Override
 	public boolean equals(Object obj) {
 		if (this == obj) {
@@ -75,27 +82,9 @@ public class RouterDescription {
 			return false;
 		}
 		RouterDescription other = (RouterDescription) obj;
-		if (processIPAddress == null) {
-			if (other.processIPAddress != null) {
-				return false;
-			}
-		} else if (!processIPAddress.equals(other.processIPAddress)) {
-			return false;
-		}
-		if (processPortNumber != other.processPortNumber) {
-			return false;
-		}
-		if (simulatedIPAddress == null) {
-			if (other.simulatedIPAddress != null) {
-				return false;
-			}
-		} else if (!simulatedIPAddress.equals(other.simulatedIPAddress)) {
-			return false;
-		}
-		if (status != other.status) {
-			return false;
-		}
-		return true;
+		return (this.simulatedIPAddress.equals(other.simulatedIPAddress)
+				&& this.processPortNumber == other.processPortNumber);
 	}
+
 
 }

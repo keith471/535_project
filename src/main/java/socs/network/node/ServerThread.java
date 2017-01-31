@@ -5,7 +5,9 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 
+import socs.network.exceptions.DuplicateLinkException;
 import socs.network.exceptions.NoAvailablePortsException;
+import socs.network.exceptions.SelfLinkException;
 import socs.network.exceptions.UnexpectedMessageException;
 import socs.network.message.MessageType;
 import socs.network.message.SOSPFPacket;
@@ -22,6 +24,10 @@ public class ServerThread extends Thread {
 		this.router = router;
 	}
 
+	/**
+	 * Switch based on the message type of the packet received, and then follow
+	 * the according protocol
+	 */
 	@Override
 	public void run() {
 
@@ -29,15 +35,9 @@ public class ServerThread extends Thread {
 				// get the output of the socket to talk to the client
 				ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
 				ObjectInputStream is = new ObjectInputStream(socket.getInputStream());) {
-			// PrintWriter out = new PrintWriter(socket.getOutputStream(),
-			// true);
-			// get the input of the socket to listen to the client
-			// BufferedReader in = new BufferedReader(new
-			// InputStreamReader(socket.getInputStream()));) {
 
 			SOSPFPacket inputPacket;
-			// in this protocol, the client speaks first, so we just begin
-			// listening
+			// in this protocol, the client speaks first, so we just begin listening
 			inputPacket = (SOSPFPacket) is.readObject();
 			// message received, process it
 			switch (inputPacket.getMessageType()) {
@@ -58,10 +58,8 @@ public class ServerThread extends Thread {
 			}
 
 			// IMPORTANT: as we did not create the socket connection to the
-			// client within a try
-			// with resources statement, we are responsible for closing the
-			// socket ourselves upon
-			// finishing communication
+			// client within a try with resources statement, we are responsible
+			// for closing the socket ourselves upon finishing communication
 			socket.close();
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -70,8 +68,13 @@ public class ServerThread extends Thread {
 		}
 	}
 
+	/////////////////////////////////////////////////////////////////////////////////////////////////
+	// PROTOCOLS
+	/////////////////////////////////////////////////////////////////////////////////////////////////
+
 	/**
-	 * The server received request to connect followed by a HELLO
+	 * The server received request to connect followed by a HELLO. This means it
+	 * has initiated a handshake with us.
 	 * 
 	 * @param inPacket
 	 */
@@ -102,6 +105,14 @@ public class ServerThread extends Thread {
 		System.out.println("set " + inPacket.getSrcIP() + " state to TWO_WAY;\n");
 	}
 
+	/**
+	 * The server received a request to connect followed by an ADDLINK. This
+	 * means the remote client has requested we add a link to it.
+	 * 
+	 * @param packet
+	 * @param os
+	 * @throws IOException
+	 */
 	private void handleAddLink(SOSPFPacket packet, ObjectOutputStream os) throws IOException {
 
 		try {
@@ -118,35 +129,24 @@ public class ServerThread extends Thread {
 			// send ERROR response packet
 			SOSPFPacket errPacket = new SOSPFPacket("No ports available!!!");
 			os.writeObject(errPacket);
+		} catch (DuplicateLinkException ex) {
+			// send ERROR response packet
+			SOSPFPacket errPacket = new SOSPFPacket("You already have a link to this server!!!");
+			os.writeObject(errPacket);
+		} catch (SelfLinkException ex) {
+			// send ERROR response packet
+			SOSPFPacket errPacket = new SOSPFPacket(
+					"The client tried forcing the server to add a link to itself... This should never happen!!!");
+			os.writeObject(errPacket);
 		}
 	}
 
 	/**
-	 * A HELLO has been received. Follow the protocol for dealing with it
+	 * The server received a request to connect followed by an LSAUPDATE. This
+	 * means...
 	 * 
-	 * @throws IOException
-	 */
-	private void processHello(ObjectInputStream in, ObjectOutputStream out) throws IOException, ClassNotFoundException {
-
-		// add a Link to R1, retain a reference to this link, and
-		// set the status in its Link's RouterDescription of R1 to INIT
-
-		// send HELLO back to R1 and await reply, which should be another HELLO
-		SOSPFPacket inputMsg = (SOSPFPacket) in.readObject();
-
-		// ensure HELLO was received, if not then return (ends the
-		// communication)
-		// if (getMessageType(inputMsg) != MessageType.HELLO) {
-		// return;
-		// }
-
-		// received HELLO from R1; set the status in R2's Link's
-		// RouterDescription of R1 as TWO_WAY
-
-	}
-
-	/**
-	 * An LSAUPDATE has been received. Follow the protocol for dealing with it
+	 * @param in
+	 * @param out
 	 */
 	private void processLsaUpdate(ObjectInputStream in, ObjectOutputStream out) {
 
