@@ -11,12 +11,15 @@ public class Link {
 	// the routers on either end of the link
 	private RouterDescription router1; // the router that owns this Link object
 	private RouterDescription router2; // the remote router
+	private int weight;
 
-	public Link(RouterDescription r1, RouterDescription r2) {
-		router1 = r1;
-		router2 = r2;
+	public Link(RouterDescription r1, RouterDescription r2, int weight) {
+		this.router1 = r1;
+		this.router2 = r2;
+		this.weight = weight;
 	}
-
+	
+	// Setters and Getters
 	public RouterDescription getRouter1() {
 		return router1;
 	}
@@ -31,6 +34,14 @@ public class Link {
 
 	public void setRouter2(RouterDescription router2) {
 		this.router2 = router2;
+	}
+	
+	public int getWeight() {
+		return weight;
+	}
+	
+	public void setWeight(int weight) {
+		this.weight = weight;
 	}
 
 	@Override

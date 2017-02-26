@@ -2,11 +2,15 @@ package socs.network.node;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.HashMap;
+import java.util.Vector;
 
 import socs.network.exceptions.DuplicateLinkException;
 import socs.network.exceptions.NoAvailablePortsException;
 import socs.network.exceptions.NoSuchLinkException;
 import socs.network.exceptions.SelfLinkException;
+import socs.network.message.LSA;
+import socs.network.message.LinkDescription;
 import socs.network.util.Configuration;
 
 /**
@@ -91,11 +95,15 @@ public class Router {
 		try {
 			// create a router description for the router to connect to
 			RouterDescription rd2 = new RouterDescription(processIP, processPort, simulatedIP);
-			// create new Link object
-			Link l = new Link(this.rd, rd2);
+			// create new Link object and add it to ports array
+			Link l = new Link(this.rd, rd2, weight);
 			int port = this.addLink(l);
+			// create new LinkDescription object and add it to the LinkStateDatabase
+			LinkDescription ld = new LinkDescription(rd2.getSimulatedIPAddress(), port, weight);
+			this.addLinkDescription(ld);
 			// notify the remote router that we'd like to add a link to it
-			this.sendAddLink(l, port);
+			this.sendAddLink(l, port, weight);
+			// notify the remote router
 			System.out.println("Successfully added a link to port " + port);
 		} catch (NoAvailablePortsException ex) {
 			System.err.println("ERROR:\tno more ports available for router " + this.rd.getSimulatedIPAddress());
@@ -120,6 +128,11 @@ public class Router {
 		}
 
 		// TODO send LSAUPDATE (PA 2)
+		for (int i = 0; i < this.ports.length; i++) {
+			if (this.ports[i] != null) {
+				this.sendLsaUpdate(ports[i]);
+			}
+		}
 	}
 
 	/**
@@ -200,6 +213,51 @@ public class Router {
 		this.ports[port] = l;
 		return port;
 	}
+	
+	/**
+	 * Add the LinkDescription to the LSA of the local router
+	 * @param ld
+	 */
+	public synchronized void addLinkDescription(LinkDescription ld) {
+		// get the appropriate LSA
+		LSA lsa = lsd.get_Store().get(rd.getSimulatedIPAddress());
+		if (lsa != null) {
+			// add the LinkDescription to the LSA and increment the lsaSeqNumber since we altered the LSA
+			lsa.getLinks().add(ld);
+			lsa.incrementLsaSeqNumber();
+		} else {
+			System.err.println("Could not find matching LSA in Link State Database. This error should not occur");
+		}
+	}
+	
+	/**
+	 * Update the LinkStateDatabase according to the rules
+	 * @param lsaArray
+	 * @param sourceIP
+	 */
+	public synchronized void lsaUpdate(Vector<LSA> lsaArray, String sourceIP) {
+		HashMap<String, LSA> lsaMap = lsd.get_Store();
+		
+		for (LSA lsa : lsaArray) {
+			// if the HashMap already contains an LSA with same originating router
+			if (lsaMap.containsKey(lsa.getLinkStateID())) {
+				// check if the lsaSeqNumber of the received LSA is greater, if it is, replace the old LSA
+				if (lsaMap.get(lsa.getLinkStateID()).getLsaSeqNumber() < lsa.getLsaSeqNumber()) {
+					lsaMap.replace(lsa.getLinkStateID(), lsa);
+				}
+			} else { // otherwise add the new LSA
+				lsaMap.put(lsa.getLinkStateID(), lsa);
+			}
+		}
+		
+		// also send LSAUPDATE message to all neighbor routers (except the router that sent the LSAUPDATE)
+		for (int i = 0; i < this.ports.length; i++) {
+			if (this.ports[i] != null && ports[i].getRouter2().getSimulatedIPAddress() != sourceIP) {
+				this.sendLsaUpdate(ports[i]);
+			}
+		}
+		
+	}
 
 	/**
 	 * Finds an available port by iterating through the ports array
@@ -279,9 +337,10 @@ public class Router {
 		new ClientThread(this, Protocol.LSAUPDATE, l.getRouter1(), l.getRouter2()).start();
 	}
 
-	public void sendAddLink(Link l, int port) {
+	public void sendAddLink(Link l, int port, int weight) {
 		ClientThread ct = new ClientThread(this, Protocol.ADDLINK, l.getRouter1(), l.getRouter2());
 		ct.setLinkPort(port);
+		ct.setWeight(weight);
 		ct.start();
 	}
 

@@ -30,6 +30,9 @@ public class SOSPFPacket implements Serializable {
 	private Vector<LSA> lsaArray = null;
 
 	private String errorMsg;
+	
+	// for ADDLINK
+	private int weight;
 
 	/**
 	 * Convenience initializer for errors
@@ -119,6 +122,14 @@ public class SOSPFPacket implements Serializable {
 
 	public void setErrorMsg(String errorMsg) {
 		this.errorMsg = errorMsg;
+	}
+
+	public int getWeight() {
+		return weight;
+	}
+
+	public void setWeight(int weight) {
+		this.weight = weight;
 	}
 
 }

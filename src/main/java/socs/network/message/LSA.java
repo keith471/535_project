@@ -11,15 +11,20 @@ import java.util.LinkedList;
  */
 public class LSA implements Serializable {
 
-	public String linkStateID; // simulated IP address of the router where this
+	private String linkStateID; // simulated IP address of the router where this
 								// LSA originated
-	public int lsaSeqNumber = Integer.MIN_VALUE; // version of the LSA, to be
+	private int lsaSeqNumber = Integer.MIN_VALUE; // version of the LSA, to be
 													// compared with last LSA
 													// version received by the
 													// router from the sender
 													// (linkstateid)
 
-	public LinkedList<LinkDescription> links = new LinkedList<LinkDescription>();
+	private LinkedList<LinkDescription> links = new LinkedList<LinkDescription>();
+	
+	public LSA(String linkStateID, int lsaSeqNumber) {
+		this.linkStateID = linkStateID;
+		this.lsaSeqNumber = lsaSeqNumber;
+	}
 
 	@Override
 	public String toString() {
@@ -31,4 +36,30 @@ public class LSA implements Serializable {
 		sb.append("\n");
 		return sb.toString();
 	}
+	
+	public void incrementLsaSeqNumber() {
+		lsaSeqNumber++;
+	}
+
+	// Setters and Getters
+	public String getLinkStateID() {
+		return linkStateID;
+	}
+
+	public void setLinkStateID(String linkStateID) {
+		this.linkStateID = linkStateID;
+	}
+
+	public int getLsaSeqNumber() {
+		return lsaSeqNumber;
+	}
+
+	public void setLsaSeqNumber(int lsaSeqNumber) {
+		this.lsaSeqNumber = lsaSeqNumber;
+	}
+
+	public LinkedList<LinkDescription> getLinks() {
+		return links;
+	}
+
 }

@@ -4,11 +4,15 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.HashMap;
+import java.util.Vector;
 
 import socs.network.exceptions.DuplicateLinkException;
 import socs.network.exceptions.NoAvailablePortsException;
 import socs.network.exceptions.SelfLinkException;
 import socs.network.exceptions.UnexpectedMessageException;
+import socs.network.message.LSA;
+import socs.network.message.LinkDescription;
 import socs.network.message.MessageType;
 import socs.network.message.SOSPFPacket;
 
@@ -45,7 +49,7 @@ public class ServerThread extends Thread {
 				handshake(inputPacket, is, os);
 				break;
 			case LSAUPDATE:
-
+				processLsaUpdate(inputPacket, os);
 				break;
 			case ADDLINK:
 				handleAddLink(inputPacket, os);
@@ -117,10 +121,13 @@ public class ServerThread extends Thread {
 
 		try {
 			// need to get an available port and add the link all in one go
-			RouterDescription r2 = new RouterDescription(packet.getSrcProcessIP(), packet.getSrcProcessPort(),
+			RouterDescription rd2 = new RouterDescription(packet.getSrcProcessIP(), packet.getSrcProcessPort(),
 					packet.getSrcIP());
-			Link l = new Link(router.getRd(), r2);
-			this.router.addLink(l);
+			Link l = new Link(router.getRd(), rd2, packet.getWeight());
+			int port = this.router.addLink(l);
+			// create new LinkDescription and add it to the LinkStateDatabase
+			LinkDescription ld = new LinkDescription(rd2.getSimulatedIPAddress(), port, packet.getWeight());
+			this.router.addLinkDescription(ld);
 			
 			// send back success message?
 			SOSPFPacket responsePacket = new SOSPFPacket();
@@ -148,7 +155,16 @@ public class ServerThread extends Thread {
 	 * @param in
 	 * @param out
 	 */
-	private void processLsaUpdate(ObjectInputStream in, ObjectOutputStream out) {
-
+	private void processLsaUpdate(SOSPFPacket packet, ObjectOutputStream os) throws IOException {
+		Vector<LSA> lsaArray = packet.getLsaArray();
+		String sourceIP = packet.getSrcIP();
+		
+		// call the method in the router for updating LinsStateDatabase
+		// sourceIP is the simulated IP address of the router that sent the LSAUPDATE message
+		this.router.lsaUpdate(lsaArray, sourceIP);
+		
+		// send back a success message
+		SOSPFPacket responsePacket = new SOSPFPacket();
+		os.writeObject(responsePacket);
 	}
 }
