@@ -19,9 +19,9 @@ public class LSA implements Serializable {
 								// compared with last LSA
 								// version received by the
 								// router from the sender
-								// (linkStateId)
+								// (originIp)
 
-	// the links from the origin router to all other routers
+	// the links from the origin router to its neighbors
 	private LinkedList<LinkDescription> links;
 	
 	public LSA(String originIp, int lsaSeqNumber) {
@@ -54,16 +54,8 @@ public class LSA implements Serializable {
 		return originIp;
 	}
 
-	public void setOriginIp(String originIp) {
-		this.originIp = originIp;
-	}
-
 	public int getLsaSeqNumber() {
 		return lsaSeqNumber;
-	}
-
-	public void setLsaSeqNumber(int lsaSeqNumber) {
-		this.lsaSeqNumber = lsaSeqNumber;
 	}
 
 	public LinkedList<LinkDescription> getLinks() {

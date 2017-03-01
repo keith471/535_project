@@ -10,12 +10,15 @@ import java.io.Serializable;
  */
 public class LinkDescription implements Serializable {
 
-	private String destinationIp; // the simulated IP address of the node that
-							// originated the LSA (the destination node)
-	private int portNum; // the port that can be used to reach the node with
-							// address linkID (-1 if the destination node is the
-							// current one)
-	private int distance; // the distance to the node
+	private String destinationIp; // the simulated IP address of the destination
+									// node
+	private int portNum; // the port that can be used from the LSA origin node
+							// to reach the node with
+							// address destinationIp (-1 if the destination node
+							// is the
+							// origin)
+	private int distance; // the distance to the node (0 if the destination node
+							// is the origin)
 
 	public LinkDescription(String linkID, int portNum, int distance) {
 		this.destinationIp = linkID;
@@ -33,23 +36,11 @@ public class LinkDescription implements Serializable {
 		return destinationIp;
 	}
 
-	public void setDestinationIp(String destinationIp) {
-		this.destinationIp = destinationIp;
-	}
-
 	public int getPortNum() {
 		return portNum;
 	}
 
-	public void setPortNum(int portNum) {
-		this.portNum = portNum;
-	}
-
 	public int getDistance() {
 		return distance;
-	}
-
-	public void setDistance(int distance) {
-		this.distance = distance;
 	}
 }
