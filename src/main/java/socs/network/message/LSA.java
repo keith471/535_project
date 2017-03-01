@@ -13,7 +13,7 @@ import java.util.LinkedList;
  */
 public class LSA implements Serializable {
 
-	private String linkStateID; // simulated IP address of the router where this
+	private String originIp; // simulated IP address of the router where this
 								// LSA originated
 	private int lsaSeqNumber; // version of the LSA, to be
 								// compared with last LSA
@@ -21,18 +21,19 @@ public class LSA implements Serializable {
 								// router from the sender
 								// (linkStateId)
 
-	//
-	private LinkedList<LinkDescription> links = new LinkedList<LinkDescription>();
+	// the links from the origin router to all other routers
+	private LinkedList<LinkDescription> links;
 	
-	public LSA(String linkStateID, int lsaSeqNumber) {
-		this.linkStateID = linkStateID;
+	public LSA(String originIp, int lsaSeqNumber) {
+		this.originIp = originIp;
 		this.lsaSeqNumber = lsaSeqNumber;
+		this.links = new LinkedList<LinkDescription>();
 	}
 
 	@Override
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
-		sb.append(linkStateID + ":").append(lsaSeqNumber + "\n");
+		sb.append(originIp + ":").append(lsaSeqNumber + "\n");
 		for (LinkDescription ld : links) {
 			sb.append(ld);
 		}
@@ -49,12 +50,12 @@ public class LSA implements Serializable {
 	}
 
 	// Setters and Getters
-	public String getLinkStateID() {
-		return linkStateID;
+	public String getOriginIp() {
+		return originIp;
 	}
 
-	public void setLinkStateID(String linkStateID) {
-		this.linkStateID = linkStateID;
+	public void setOriginIp(String originIp) {
+		this.originIp = originIp;
 	}
 
 	public int getLsaSeqNumber() {

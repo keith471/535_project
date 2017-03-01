@@ -70,7 +70,17 @@ public class Router {
 	 *            the port number which the link attaches at
 	 */
 	private void processDisconnect(short portNumber) {
+		// TODO remove the link between this router and the remote router
+		// connected at port number
+		// does this require reaching out to the remote router to tell it to
+		// also remove its link? Probably
 
+		// send LSAUPDATE out to all neighbors
+		for (int i = 0; i < this.ports.length; i++) {
+			if (this.ports[i] != null) {
+				this.sendLsaUpdate(ports[i]);
+			}
+		}
 	}
 
 	/**
@@ -127,7 +137,7 @@ public class Router {
 			}
 		}
 
-		// TODO send LSAUPDATE (PA 2)
+		// send LSAUPDATE out to all neighbors
 		for (int i = 0; i < this.ports.length; i++) {
 			if (this.ports[i] != null) {
 				this.sendLsaUpdate(ports[i]);
@@ -223,7 +233,7 @@ public class Router {
 		LSA lsa = lsd.get_Store().get(rd.getSimulatedIPAddress());
 		if (lsa != null) {
 			// add the LinkDescription to the LSA and increment the lsaSeqNumber since we altered the LSA
-			lsa.getLinks().add(ld);
+			lsa.addLink(ld);
 			lsa.incrementLsaSeqNumber();
 		} else {
 			System.err.println("Could not find matching LSA in Link State Database. This error should not occur");
@@ -240,13 +250,13 @@ public class Router {
 		
 		for (LSA lsa : lsaArray) {
 			// if the HashMap already contains an LSA with same originating router
-			if (lsaMap.containsKey(lsa.getLinkStateID())) {
+			if (lsaMap.containsKey(lsa.getOriginIp())) {
 				// check if the lsaSeqNumber of the received LSA is greater, if it is, replace the old LSA
-				if (lsaMap.get(lsa.getLinkStateID()).getLsaSeqNumber() < lsa.getLsaSeqNumber()) {
-					lsaMap.replace(lsa.getLinkStateID(), lsa);
+				if (lsaMap.get(lsa.getOriginIp()).getLsaSeqNumber() < lsa.getLsaSeqNumber()) {
+					lsaMap.replace(lsa.getOriginIp(), lsa);
 				}
 			} else { // otherwise add the new LSA
-				lsaMap.put(lsa.getLinkStateID(), lsa);
+				lsaMap.put(lsa.getOriginIp(), lsa);
 			}
 		}
 		

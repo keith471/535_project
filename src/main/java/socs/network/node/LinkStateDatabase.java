@@ -17,7 +17,7 @@ public class LinkStateDatabase {
 	// ip address of node from where the LSA update originated => LSA instance
 	private HashMap<String, LSA> _store = new HashMap<String, LSA>();
 
-	private RouterDescription rd = null;
+	private RouterDescription rd;
 
 	public LinkStateDatabase(RouterDescription routerDescription) {
 		rd = routerDescription;
@@ -28,38 +28,39 @@ public class LinkStateDatabase {
 	 * output the shortest path from this router to the destination with the
 	 * given IP address
 	 */
-	String getShortestPath(String destinationIP) {
+	public String getShortestPath(String destinationIP) {
 		// TODO: fill the implementation here
 		return null;
 	}
 
 	/**
 	 * Initialize the LSD by adding an entry to the store for this router
-	 * 
-	 * @return
 	 */
 	private void initLinkStateDatabase() {
-		LSA lsa = new LSA(rd.getSimulatedIPAddress(), Integer.MIN_VALUE);
+		LSA lsa = new LSA(rd.getSimulatedIPAddress(), 0);
+		// create a link description for this router to itself
 		LinkDescription ld = new LinkDescription(rd.getSimulatedIPAddress(), -1, 0);
 		lsa.addLink(ld);
-		_store.put(lsa.getLinkStateID(), lsa);
+		_store.put(lsa.getOriginIp(), lsa);
+	}
+
+	// Getters and setters
+
+	public HashMap<String, LSA> get_Store() {
+		return _store;
 	}
 
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		for (LSA lsa : _store.values()) {
-			sb.append(lsa.getLinkStateID()).append("(" + lsa.getLsaSeqNumber() + ")").append(":\t");
+			sb.append(lsa.getOriginIp()).append("(" + lsa.getLsaSeqNumber() + ")").append(":\t");
 			for (LinkDescription ld : lsa.getLinks()) {
-				sb.append(ld.getLinkID()).append(",").append(ld.getPortNum()).append(",").append(ld.getTosMetrics()).append("\t");
+				sb.append(ld.getDestinationIp()).append(",").append(ld.getPortNum()).append(",")
+						.append(ld.getDistance()).append("\t");
 			}
 			sb.append("\n");
 		}
 		return sb.toString();
 	}
-	
-	public HashMap<String, LSA> get_Store() {
-		return _store;
-	}
-
 }
