@@ -6,21 +6,22 @@ import socs.network.message.LSA;
 import socs.network.message.LinkDescription;
 
 /**
+ * Each router contains one of these. When it needs to find a route to another
+ * node in the network, it runs Dijkstra's alg over this
  * 
  * @author kstricks
  *
  */
 public class LinkStateDatabase {
 
-	// map: linkID (in LinkDescription) => LSAInstance
+	// ip address of node from where the LSA update originated => LSA instance
 	private HashMap<String, LSA> _store = new HashMap<String, LSA>();
 
 	private RouterDescription rd = null;
 
 	public LinkStateDatabase(RouterDescription routerDescription) {
 		rd = routerDescription;
-		LSA l = initLinkStateDatabase();
-		_store.put(l.getLinkStateID(), l);
+		initLinkStateDatabase();
 	}
 
 	/**
@@ -32,13 +33,16 @@ public class LinkStateDatabase {
 		return null;
 	}
 
-	// initialize the link state database by adding an entry about the router
-	// itself
-	private LSA initLinkStateDatabase() {
+	/**
+	 * Initialize the LSD by adding an entry to the store for this router
+	 * 
+	 * @return
+	 */
+	private void initLinkStateDatabase() {
 		LSA lsa = new LSA(rd.getSimulatedIPAddress(), Integer.MIN_VALUE);
 		LinkDescription ld = new LinkDescription(rd.getSimulatedIPAddress(), -1, 0);
-		lsa.getLinks().add(ld);
-		return lsa;
+		lsa.addLink(ld);
+		_store.put(lsa.getLinkStateID(), lsa);
 	}
 
 	@Override

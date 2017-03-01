@@ -4,7 +4,9 @@ import java.io.Serializable;
 import java.util.LinkedList;
 
 /**
- * Link state advertisement
+ * Link state advertisement. This contains the link descriptions for the links
+ * that the origin node (linkStateID) is sure of. i.e. the link descriptions to
+ * itself and to its neighbors
  * 
  * @author kstricks
  *
@@ -13,12 +15,13 @@ public class LSA implements Serializable {
 
 	private String linkStateID; // simulated IP address of the router where this
 								// LSA originated
-	private int lsaSeqNumber = Integer.MIN_VALUE; // version of the LSA, to be
-													// compared with last LSA
-													// version received by the
-													// router from the sender
-													// (linkstateid)
+	private int lsaSeqNumber; // version of the LSA, to be
+								// compared with last LSA
+								// version received by the
+								// router from the sender
+								// (linkStateId)
 
+	//
 	private LinkedList<LinkDescription> links = new LinkedList<LinkDescription>();
 	
 	public LSA(String linkStateID, int lsaSeqNumber) {
@@ -39,6 +42,10 @@ public class LSA implements Serializable {
 	
 	public void incrementLsaSeqNumber() {
 		lsaSeqNumber++;
+	}
+
+	public void addLink(LinkDescription ld) {
+		this.links.add(ld);
 	}
 
 	// Setters and Getters
