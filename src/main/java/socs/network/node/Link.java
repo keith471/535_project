@@ -11,7 +11,7 @@ public class Link {
 	// the routers on either end of the link
 	private RouterDescription router1; // the router that owns this Link object
 	private RouterDescription router2; // the remote router
-	private int weight;
+	private int weight; // the weight of the link (distance)
 
 	public Link(RouterDescription r1, RouterDescription r2, int weight) {
 		this.router1 = r1;
@@ -24,25 +24,14 @@ public class Link {
 		return router1;
 	}
 
-	public void setRouter1(RouterDescription router1) {
-		this.router1 = router1;
-	}
-
 	public RouterDescription getRouter2() {
 		return router2;
-	}
-
-	public void setRouter2(RouterDescription router2) {
-		this.router2 = router2;
 	}
 	
 	public int getWeight() {
 		return weight;
 	}
 	
-	public void setWeight(int weight) {
-		this.weight = weight;
-	}
 
 	@Override
 	public int hashCode() {

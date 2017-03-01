@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.util.HashMap;
 import java.util.Vector;
 
 import socs.network.exceptions.DuplicateLinkException;
@@ -127,7 +126,7 @@ public class ServerThread extends Thread {
 			int port = this.router.addLink(l);
 			// create new LinkDescription and add it to the LinkStateDatabase
 			LinkDescription ld = new LinkDescription(rd2.getSimulatedIPAddress(), port, packet.getWeight());
-			this.router.addLinkDescription(ld);
+			this.router.addLinkDescriptionToLinkStateDatabase(ld);
 			
 			// send back success message?
 			SOSPFPacket responsePacket = new SOSPFPacket();

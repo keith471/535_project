@@ -108,9 +108,9 @@ public class Router {
 			// create new Link object and add it to ports array
 			Link l = new Link(this.rd, rd2, weight);
 			int port = this.addLink(l);
-			// create new LinkDescription object and add it to the LinkStateDatabase
-			LinkDescription ld = new LinkDescription(rd2.getSimulatedIPAddress(), port, weight);
-			this.addLinkDescription(ld);
+			// create new LinkDescription object for this link and add it to the
+			// LinkStateDatabase
+			this.addLinkDescriptionToLinkStateDatabase(new LinkDescription(rd2.getSimulatedIPAddress(), port, weight));
 			// notify the remote router that we'd like to add a link to it
 			this.sendAddLink(l, port, weight);
 			// notify the remote router
@@ -136,6 +136,9 @@ public class Router {
 				this.initiateHandshake(ports[i]);
 			}
 		}
+
+		// TODO Could be error here if handshakes are not done before LSA
+		// updates are sent out?
 
 		// send LSAUPDATE out to all neighbors
 		for (int i = 0; i < this.ports.length; i++) {
@@ -225,11 +228,13 @@ public class Router {
 	}
 	
 	/**
-	 * Add the LinkDescription to the LSA of the local router
+	 * Add the LinkDescription to the LSA of the local router in this router's
+	 * LinkStateDatabase
+	 * 
 	 * @param ld
 	 */
-	public synchronized void addLinkDescription(LinkDescription ld) {
-		// get the appropriate LSA
+	public synchronized void addLinkDescriptionToLinkStateDatabase(LinkDescription ld) {
+		// get the LSA for this router
 		LSA lsa = lsd.get_Store().get(rd.getSimulatedIPAddress());
 		if (lsa != null) {
 			// add the LinkDescription to the LSA and increment the lsaSeqNumber since we altered the LSA
@@ -237,6 +242,7 @@ public class Router {
 			lsa.incrementLsaSeqNumber();
 		} else {
 			System.err.println("Could not find matching LSA in Link State Database. This error should not occur");
+			System.exit(1);
 		}
 	}
 	
