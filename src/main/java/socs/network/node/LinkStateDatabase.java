@@ -30,7 +30,7 @@ public class LinkStateDatabase {
 	 */
 	public String getShortestPath(String destinationIP) {
 		// TODO: fill the implementation here
-		return null;
+		return "";
 	}
 
 	/**
