@@ -121,6 +121,10 @@ public class LinkStateDatabase {
 		}
 	}
 
+	////////////////////////////////////////////////////////////////////////////
+	// Dijkstra's algorithm
+	////////////////////////////////////////////////////////////////////////////
+
 	/**
 	 * output the shortest path from this router to the destination with the
 	 * given IP address
@@ -197,7 +201,7 @@ public class LinkStateDatabase {
 		return "No path found";
 	}
 
-	// helpers
+	// helpers for Dijkstra's
 
 	private boolean isConfirmed(ArrayList<PathDescription> confirmed, String ip) {
 		for (PathDescription pd : confirmed) {
