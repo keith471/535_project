@@ -66,7 +66,7 @@ public class LinkStateDatabase {
 
 	}
 
-	private class PathDescription implements Comparable {
+	private class PathDescription implements Comparable<PathDescription> {
 
 		private final String destinationIp;
 		private int distance;
@@ -97,17 +97,6 @@ public class LinkStateDatabase {
 			return buff.toString();
 		}
 
-		@Override
-		public int compareTo(Object o) {
-			PathDescription other = (PathDescription) o;
-			if (this.distance < other.distance) {
-				return -1;
-			} else if (this.distance == other.distance) {
-				return 0;
-			}
-			return 1;
-		}
-
 		public String getDestinationIp() {
 			return this.destinationIp;
 		}
@@ -118,6 +107,16 @@ public class LinkStateDatabase {
 
 		public LinkedList<Edge> getPath() {
 			return this.path;
+		}
+
+		@Override
+		public int compareTo(PathDescription o) {
+			if (this.distance < o.distance) {
+				return -1;
+			} else if (this.distance == o.distance) {
+				return 0;
+			}
+			return 1;
 		}
 	}
 
@@ -194,7 +193,7 @@ public class LinkStateDatabase {
 
 		// return the path to destinationIP as a string
 		for (PathDescription pd : confirmed) {
-			if (pd.getDestinationIp() == destinationIP) {
+			if (pd.getDestinationIp().equals(destinationIP)) {
 				return pd.stringifyPath();
 			}
 		}
@@ -205,7 +204,7 @@ public class LinkStateDatabase {
 
 	private boolean isConfirmed(ArrayList<PathDescription> confirmed, String ip) {
 		for (PathDescription pd : confirmed) {
-			if (pd.getDestinationIp() == ip) {
+			if (pd.getDestinationIp().equals(ip)) {
 				return true;
 			}
 		}
@@ -214,7 +213,7 @@ public class LinkStateDatabase {
 
 	private PathDescription getTentativePath(PriorityQueue<PathDescription> tentative, String ip) {
 		for (PathDescription pd : tentative) {
-			if (pd.getDestinationIp() == ip) {
+			if (pd.getDestinationIp().equals(ip)) {
 				return pd;
 			}
 		}

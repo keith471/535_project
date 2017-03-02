@@ -367,7 +367,8 @@ public class Router {
 	 */
 	private void propagateLsaUpdate(SOSPFPacket packet) {
 		for (int i = 0; i < this.ports.length; i++) {
-			if (this.ports[i] != null && ports[i].getRouter2().getSimulatedIPAddress() != packet.getPrecedingNodeIP()) {
+			if (this.ports[i] != null
+					&& !ports[i].getRouter2().getSimulatedIPAddress().equals(packet.getPrecedingNodeIP())) {
 				this.forwardLsaUpdate(ports[i], packet);
 			}
 		}
