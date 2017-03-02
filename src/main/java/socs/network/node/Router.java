@@ -11,6 +11,7 @@ import socs.network.exceptions.NoSuchLinkException;
 import socs.network.exceptions.SelfLinkException;
 import socs.network.message.LSA;
 import socs.network.message.LinkDescription;
+import socs.network.message.SOSPFPacket;
 import socs.network.util.Configuration;
 
 /**
@@ -76,11 +77,7 @@ public class Router {
 		// also remove its link? Probably
 
 		// send LSAUPDATE out to all neighbors
-		for (int i = 0; i < this.ports.length; i++) {
-			if (this.ports[i] != null) {
-				this.sendLsaUpdate(ports[i]);
-			}
-		}
+		this.triggerLsaUpdate();
 	}
 
 	/**
@@ -138,14 +135,12 @@ public class Router {
 		}
 
 		// TODO Could be error here if handshakes are not done before LSA
-		// updates are sent out?
+		// updates are sent out? Should be fine I think because the links will
+		// have already been established in processAttach, and that's really all
+		// we need.
 
 		// send LSAUPDATE out to all neighbors
-		for (int i = 0; i < this.ports.length; i++) {
-			if (this.ports[i] != null) {
-				this.sendLsaUpdate(ports[i]);
-			}
-		}
+		this.triggerLsaUpdate();
 	}
 
 	/**
@@ -171,6 +166,9 @@ public class Router {
 	 */
 	private void processConnect(String processIP, short processPort, String simulatedIP, short weight) {
 
+		// TODO
+
+		this.triggerLsaUpdate();
 	}
 
 	/**
@@ -194,6 +192,9 @@ public class Router {
 	 */
 	private void processQuit() {
 
+		// TODO
+
+		this.triggerLsaUpdate();
 	}
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -247,32 +248,41 @@ public class Router {
 	}
 	
 	/**
-	 * Update the LinkStateDatabase according to the rules
-	 * @param lsaArray
-	 * @param sourceIP
+	 * Called by ServerThread in response to receipt of a LSAUPDATE packet
+	 * Updates the LinkStateDatabase with any new LSAs in the LSAUPDATE and
+	 * propagates the update onto neighbors, if it contains new information
+	 * 
+	 * @param packet
+	 *            - the SOSPFPacket received by the ServerThread
 	 */
-	public synchronized void lsaUpdate(Vector<LSA> lsaArray, String sourceIP) {
+	public synchronized void performLsaUpdate(SOSPFPacket packet) {
 		HashMap<String, LSA> lsaMap = lsd.get_Store();
 		
+		Vector<LSA> lsaArray = packet.getLsaArray();
+
+		boolean didUpdate = false;
+
 		for (LSA lsa : lsaArray) {
 			// if the HashMap already contains an LSA with same originating router
 			if (lsaMap.containsKey(lsa.getOriginIp())) {
-				// check if the lsaSeqNumber of the received LSA is greater, if it is, replace the old LSA
+				// check if the lsaSeqNumber of the received LSA is greater than the current
+				// if it is, replace the old LSA
 				if (lsaMap.get(lsa.getOriginIp()).getLsaSeqNumber() < lsa.getLsaSeqNumber()) {
 					lsaMap.replace(lsa.getOriginIp(), lsa);
+					didUpdate = true;
 				}
 			} else { // otherwise add the new LSA
 				lsaMap.put(lsa.getOriginIp(), lsa);
+				didUpdate = true;
 			}
 		}
 		
-		// also send LSAUPDATE message to all neighbor routers (except the router that sent the LSAUPDATE)
-		for (int i = 0; i < this.ports.length; i++) {
-			if (this.ports[i] != null && ports[i].getRouter2().getSimulatedIPAddress() != sourceIP) {
-				this.sendLsaUpdate(ports[i]);
-			}
+		// propagate the LSAUPDATE message to all neighbor routers (except the
+		// node that sent this node the update) provided it contained new
+		// information
+		if (didUpdate) {
+			this.propagateLsaUpdate(packet);
 		}
-		
 	}
 
 	/**
@@ -341,6 +351,28 @@ public class Router {
 		throw new NoSuchLinkException();
 	}
 
+	private void triggerLsaUpdate() {
+		for (int i = 0; i < this.ports.length; i++) {
+			if (this.ports[i] != null) {
+				this.sendLsaUpdate(ports[i]);
+			}
+		}
+	}
+
+	/**
+	 * Propagate the LSAUPDATE to all neighbors but the neighbor from which we
+	 * received the packet
+	 * 
+	 * @param precedingNodeIP
+	 */
+	private void propagateLsaUpdate(SOSPFPacket packet) {
+		for (int i = 0; i < this.ports.length; i++) {
+			if (this.ports[i] != null && ports[i].getRouter2().getSimulatedIPAddress() != packet.getPrecedingNodeIP()) {
+				this.forwardLsaUpdate(ports[i], packet);
+			}
+		}
+	}
+
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// CLIENT SPAWNERS
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -349,8 +381,26 @@ public class Router {
 		new ClientThread(this, Protocol.HANDSHAKE, l.getRouter1(), l.getRouter2()).start();
 	}
 
+	/**
+	 * For sending a new LSAUPDATE (initiated from this router)
+	 * 
+	 * @param l
+	 */
 	public void sendLsaUpdate(Link l) {
 		new ClientThread(this, Protocol.LSAUPDATE, l.getRouter1(), l.getRouter2()).start();
+	}
+
+	/**
+	 * For forwarding on an LSAUPDATE that was initiated elsewhere
+	 * 
+	 * @param packet
+	 *            - the packet received by this router
+	 */
+	public void forwardLsaUpdate(Link l, SOSPFPacket packet) {
+		// update the packet with this router's IP as the precedingNodeIP
+		packet.setPrecedingNodeIP(this.rd.getSimulatedIPAddress());
+		// forward it using a ClientThread
+		new ClientThread(packet, l.getRouter2()).start();
 	}
 
 	public void sendAddLink(Link l, int port, int weight) {
