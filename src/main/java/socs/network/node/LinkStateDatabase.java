@@ -152,28 +152,29 @@ public class LinkStateDatabase {
 			// get all the neighbors of curr (we can get them by accessing curr's LSA)
 			lsa = this._store.get(curr.getDestinationIp());
 			
-			// for each neighbor that is not already confirmed, check if we
-			// already have a tentative PathDescription for it. if so, see if we
-			// need to update its path and distance, else add a tentative path
-			// description for it
+			// for each neighbor...
+			PathDescription tPath;
+			String neighborIP;
+			Edge e;
 			for (LinkDescription ld : lsa.getLinks()) {
+				// ignore link descriptions for curr back to itself
 				if (ld.getPortNum() != -1) {
-					String neighborIP = ld.getDestinationIp();
-					// check that the neighbor is not already confirmed
+					neighborIP = ld.getDestinationIp();
+					// check that the neighbor is not already confirmed (if it
+					// is, then we've already found the shortest path to it)
 					if (!this.isConfirmed(confirmed, neighborIP)) {
-						PathDescription tPath = this.getTentativePath(tentative, neighborIP);
+						tPath = this.getTentativePath(tentative, neighborIP);
 						if (tPath == null) {
 							// create a new Edge
-							Edge e = new Edge(curr.getDestinationIp(), ld.getDestinationIp(), ld.getDistance());
+							e = new Edge(curr.getDestinationIp(), ld.getDestinationIp(), ld.getDistance());
 							// add a tentative PathDescription for the neighbor
 							tentative.add(new PathDescription(neighborIP, curr.getDistance() + ld.getDistance(),
 									this.append(curr.getPath(), e)));
 						} else {
-							// see if we've found a cheaper path to it, and if
-							// so update the distance and path in the tentative
-							// PathDescription
+							// see if we've found a cheaper path to the neighbor, and if 
+							// so update the distance and path in the tentative PathDescription
 							if (tPath.getDistance() > (curr.getDistance() + ld.getDistance())) {
-								Edge e = new Edge(curr.getDestinationIp(), ld.getDestinationIp(), ld.getDistance());
+								e = new Edge(curr.getDestinationIp(), ld.getDestinationIp(), ld.getDistance());
 								LinkedList<Edge> newPath = this.append(curr.getPath(), e);
 								// remove the old tentative path
 								tentative.remove(tPath);
