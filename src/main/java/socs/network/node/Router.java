@@ -137,7 +137,8 @@ public class Router {
 		// TODO Could be error here if handshakes are not done before LSA
 		// updates are sent out? Should be fine I think because the links will
 		// have already been established in processAttach, and that's really all
-		// we need.
+		// we need. However, it is likely that we begin sending LSAUPDATES
+		// before finishing handshakes...
 
 		// send LSAUPDATE out to all neighbors
 		this.triggerLsaUpdate();
@@ -165,10 +166,9 @@ public class Router {
 	 *            - the cost of transmitting through this link
 	 */
 	private void processConnect(String processIP, short processPort, String simulatedIP, short weight) {
-
-		// TODO
-
-		this.triggerLsaUpdate();
+		// simply wraps process attach and process start
+		this.processAttach(processIP, processPort, simulatedIP, weight);
+		this.processStart();
 	}
 
 	/**
@@ -351,7 +351,11 @@ public class Router {
 		throw new NoSuchLinkException();
 	}
 
-	private void triggerLsaUpdate() {
+	/**
+	 * Sends LSAUPDATES to all neighbors of this node in response to a local
+	 * topology change. Must be public because it is accessed by ServerThread.
+	 */
+	public void triggerLsaUpdate() {
 		for (int i = 0; i < this.ports.length; i++) {
 			if (this.ports[i] != null) {
 				this.sendLsaUpdate(ports[i]);
@@ -398,10 +402,17 @@ public class Router {
 	 *            - the packet received by this router
 	 */
 	public void forwardLsaUpdate(Link l, SOSPFPacket packet) {
-		// update the packet with this router's IP as the precedingNodeIP
-		packet.setPrecedingNodeIP(this.rd.getSimulatedIPAddress());
-		// forward it using a ClientThread
-		new ClientThread(packet, l.getRouter2()).start();
+		try {
+			// create an updated copy of the packet with this router's IP as the
+			// precedingNodeIP
+			SOSPFPacket copy = (SOSPFPacket) packet.clone();
+			copy.setPrecedingNodeIP(this.rd.getSimulatedIPAddress());
+			// forward it using a ClientThread
+			new ClientThread(copy, l.getRouter2()).start();
+		} catch (CloneNotSupportedException ex) {
+			System.err.println("ERROR: error cloning SOSPFPacket - this should never happen");
+			System.exit(1);
+		}
 	}
 
 	public void sendAddLink(Link l, int port, int weight) {

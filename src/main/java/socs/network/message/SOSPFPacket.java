@@ -9,7 +9,7 @@ import java.util.Vector;
  * @author kstricks
  *
  */
-public class SOSPFPacket implements Serializable {
+public class SOSPFPacket implements Serializable, Cloneable {
 
 	// for inter-process communication
 	private String srcProcessIP;
@@ -72,6 +72,11 @@ public class SOSPFPacket implements Serializable {
 		this.srcIP = srcIP;
 		this.precedingNodeIP = srcIP;
 		this.weight = weight;
+	}
+
+	@Override
+	public Object clone() throws CloneNotSupportedException {
+		return super.clone();
 	}
 
 	// getters and setters

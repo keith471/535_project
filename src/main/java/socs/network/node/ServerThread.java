@@ -115,16 +115,23 @@ public class ServerThread extends Thread {
 	private void handleAddLink(SOSPFPacket packet, ObjectOutputStream os) throws IOException {
 
 		try {
-			// need to get an available port and add the link all in one go
+			// create a link
 			RouterDescription rd2 = new RouterDescription(packet.getSrcProcessIP(), packet.getSrcProcessPort(),
 					packet.getSrcIP());
 			Link l = new Link(router.getRd(), rd2, packet.getWeight());
+
+			// synchronously get an available port and add the link
 			int port = this.router.addLink(l);
+
 			// create new LinkDescription and add it to the LinkStateDatabase
 			LinkDescription ld = new LinkDescription(rd2.getSimulatedIPAddress(), port, packet.getWeight());
 			this.router.addLinkDescriptionToLinkStateDatabase(ld);
 			
-			// send back success message?
+			// we've update our LinkStateDatabase, so we better send out an
+			// LSAUPDATE
+			this.router.triggerLsaUpdate();
+
+			// send back success message
 			SOSPFPacket responsePacket = new SOSPFPacket();
 			os.writeObject(responsePacket);
 		} catch (NoAvailablePortsException ex) {
