@@ -9,44 +9,38 @@ import java.io.Serializable;
  *
  */
 public class LinkDescription implements Serializable {
-  private String linkID;
-  private int portNum;
-  private int tosMetrics;
-  
-  // Constructor
-  public LinkDescription(String linkID, int portNum, int tosMetrics) {
-	  this.linkID = linkID;
-	  this.portNum = portNum;
-	  this.tosMetrics = tosMetrics;
-  }
 
-  @Override
-public String toString() {
-    return linkID + ","  + portNum + "," + tosMetrics;
-  }
+	private String destinationIp; // the simulated IP address of the destination
+									// node
+	private int portNum; // the port that can be used from the LSA origin node
+							// to reach the node with
+							// address destinationIp (-1 if the destination node
+							// is the
+							// origin)
+	private int distance; // the distance to the node (0 if the destination node
+							// is the origin)
 
-// Getters and Setters
-public String getLinkID() {
-	return linkID;
-}
+	public LinkDescription(String linkID, int portNum, int distance) {
+		this.destinationIp = linkID;
+		this.portNum = portNum;
+		this.distance = distance;
+	}
 
-public void setLinkID(String linkID) {
-	this.linkID = linkID;
-}
+	@Override
+	public String toString() {
+		return destinationIp + "," + portNum + "," + distance;
+	}
 
-public int getPortNum() {
-	return portNum;
-}
+	// Getters and Setters
+	public String getDestinationIp() {
+		return destinationIp;
+	}
 
-public void setPortNum(int portNum) {
-	this.portNum = portNum;
-}
+	public int getPortNum() {
+		return portNum;
+	}
 
-public int getTosMetrics() {
-	return tosMetrics;
-}
-
-public void setTosMetrics(int tosMetrics) {
-	this.tosMetrics = tosMetrics;
-}
+	public int getDistance() {
+		return distance;
+	}
 }

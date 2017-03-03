@@ -7,5 +7,5 @@ package socs.network.node;
  *
  */
 public enum Protocol {
-	HANDSHAKE, ADDLINK, LSAUPDATE
+	HANDSHAKE, ADDLINK, LSAUPDATE, LSAUPDATEFORWARD
 }

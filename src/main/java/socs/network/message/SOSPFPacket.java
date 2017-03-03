@@ -23,11 +23,11 @@ public class SOSPFPacket implements Serializable {
 	private MessageType messageType;
 	private String routerID;
 
-	// the node immediately prior to the receiving node in the chain
-	private String neighborID;
+	// the node immediately prior to the receiving node in the chain (for LSAUPDATE)
+	private String precedingNodeIP;
 
 	// used by LSAUPDATE
-	private Vector<LSA> lsaArray = null;
+	private Vector<LSA> lsaArray;
 
 	private String errorMsg;
 	
@@ -35,17 +35,17 @@ public class SOSPFPacket implements Serializable {
 	private int weight;
 
 	/**
-	 * Convenience initializer for errors
-	 * 
-	 * @param errMsg
+	 * Many overloaded constructors for instantiating packets for various
+	 * purposes
 	 */
-	public SOSPFPacket(String errMsg) {
-		this.messageType = MessageType.ERROR;
-		this.errorMsg = errMsg;
-	}
 
 	public SOSPFPacket() {
 		this.messageType = MessageType.SUCCESS;
+	}
+
+	public SOSPFPacket(String errMsg) {
+		this.messageType = MessageType.ERROR;
+		this.errorMsg = errMsg;
 	}
 
 	public SOSPFPacket(MessageType mt, String srcProcessIP, int srcProcessPort, String srcIP) {
@@ -53,8 +53,28 @@ public class SOSPFPacket implements Serializable {
 		this.srcProcessIP = srcProcessIP;
 		this.srcProcessPort = srcProcessPort;
 		this.srcIP = srcIP;
-		this.neighborID = srcIP;
+		this.precedingNodeIP = srcIP;
 	}
+	
+	public SOSPFPacket(MessageType mt, String srcProcessIP, int srcProcessPort, String srcIP, Vector<LSA> lsaArray) {
+		this.messageType = mt;
+		this.srcProcessIP = srcProcessIP;
+		this.srcProcessPort = srcProcessPort;
+		this.srcIP = srcIP;
+		this.precedingNodeIP = srcIP;
+		this.lsaArray = lsaArray;
+	}
+
+	public SOSPFPacket(MessageType mt, String srcProcessIP, int srcProcessPort, String srcIP, int weight) {
+		this.messageType = mt;
+		this.srcProcessIP = srcProcessIP;
+		this.srcProcessPort = srcProcessPort;
+		this.srcIP = srcIP;
+		this.precedingNodeIP = srcIP;
+		this.weight = weight;
+	}
+
+	// getters and setters
 
 	public String getSrcProcessIP() {
 		return srcProcessIP;
@@ -100,12 +120,12 @@ public class SOSPFPacket implements Serializable {
 		this.routerID = routerID;
 	}
 
-	public String getNeighborID() {
-		return neighborID;
+	public String getPrecedingNodeIP() {
+		return precedingNodeIP;
 	}
 
-	public void setNeighborID(String neighborID) {
-		this.neighborID = neighborID;
+	public void setPrecedingNodeIP(String precedingNodeIP) {
+		this.precedingNodeIP = precedingNodeIP;
 	}
 
 	public Vector<LSA> getLsaArray() {
@@ -127,9 +147,4 @@ public class SOSPFPacket implements Serializable {
 	public int getWeight() {
 		return weight;
 	}
-
-	public void setWeight(int weight) {
-		this.weight = weight;
-	}
-
 }

@@ -4,14 +4,11 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.util.HashMap;
-import java.util.Vector;
 
 import socs.network.exceptions.DuplicateLinkException;
 import socs.network.exceptions.NoAvailablePortsException;
 import socs.network.exceptions.SelfLinkException;
 import socs.network.exceptions.UnexpectedMessageException;
-import socs.network.message.LSA;
 import socs.network.message.LinkDescription;
 import socs.network.message.MessageType;
 import socs.network.message.SOSPFPacket;
@@ -54,11 +51,9 @@ public class ServerThread extends Thread {
 			case ADDLINK:
 				handleAddLink(inputPacket, os);
 				break;
-			case ERROR:
-
-				break;
 			default:
-
+				System.err.println("ERROR: server received an unexpected SOSPFPacket. This should never happen.");
+				System.exit(1);
 			}
 
 			// IMPORTANT: as we did not create the socket connection to the
@@ -127,7 +122,7 @@ public class ServerThread extends Thread {
 			int port = this.router.addLink(l);
 			// create new LinkDescription and add it to the LinkStateDatabase
 			LinkDescription ld = new LinkDescription(rd2.getSimulatedIPAddress(), port, packet.getWeight());
-			this.router.addLinkDescription(ld);
+			this.router.addLinkDescriptionToLinkStateDatabase(ld);
 			
 			// send back success message?
 			SOSPFPacket responsePacket = new SOSPFPacket();
@@ -150,18 +145,16 @@ public class ServerThread extends Thread {
 
 	/**
 	 * The server received a request to connect followed by an LSAUPDATE. This
-	 * means...
+	 * means the remote client is propagating an LSAUPDATE to us, so we should
+	 * update our Router's LinkStateDatabase
 	 * 
 	 * @param in
 	 * @param out
+	 * @throws IOException
 	 */
 	private void processLsaUpdate(SOSPFPacket packet, ObjectOutputStream os) throws IOException {
-		Vector<LSA> lsaArray = packet.getLsaArray();
-		String sourceIP = packet.getSrcIP();
-		
-		// call the method in the router for updating LinsStateDatabase
-		// sourceIP is the simulated IP address of the router that sent the LSAUPDATE message
-		this.router.lsaUpdate(lsaArray, sourceIP);
+		// call the method in the router for updating LinkStateDatabase
+		this.router.performLsaUpdate(packet);
 		
 		// send back a success message
 		SOSPFPacket responsePacket = new SOSPFPacket();

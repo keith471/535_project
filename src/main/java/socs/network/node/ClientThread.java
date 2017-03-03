@@ -4,8 +4,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.net.UnknownHostException;
-import java.util.HashMap;
 import java.util.Vector;
 
 import socs.network.exceptions.UnexpectedMessageException;
@@ -23,11 +21,19 @@ public class ClientThread extends Thread {
 	// optional fields
 	private int linkPort;
 	private int weight;
+	private SOSPFPacket packet;
 
 	public ClientThread(Router router, Protocol protocol, RouterDescription source, RouterDescription dest) {
 		this.router = router;
 		this.protocol = protocol;
 		this.source = source;
+		this.dest = dest;
+	}
+
+	// overloaded constructor for LSAUPDATEFORWARD
+	public ClientThread(SOSPFPacket packet, RouterDescription dest) {
+		this.protocol = Protocol.LSAUPDATEFORWARD;
+		this.packet = packet;
 		this.dest = dest;
 	}
 
@@ -44,8 +50,15 @@ public class ClientThread extends Thread {
 		case ADDLINK:
 			sendAddLink();
 			break;
+		case LSAUPDATE:
+			sendLsaUpdate();
+			break;
+		case LSAUPDATEFORWARD:
+			forwardLsaUpdate();
+			break;
 		default:
-			// error
+			System.err.println("ERROR: client instantiated with an unexpected protocol. This should never happen.");
+			System.exit(1);
 		}
 
 	}
@@ -59,9 +72,15 @@ public class ClientThread extends Thread {
 	 */
 	public void handshake() {
 		try (
-			Socket socket = new Socket(dest.getProcessIPAddress(), dest.getProcessPortNumber());
-			ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
-			ObjectInputStream is = new ObjectInputStream(socket.getInputStream());) {
+				// create a socket connection to the server (pass the server
+				// hostname and port)
+				// get the output stream of the socket so we can write to the
+				// server
+				// get the input stream of the socket so we can read from the
+				// server
+				Socket socket = new Socket(dest.getProcessIPAddress(), dest.getProcessPortNumber());
+				ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
+				ObjectInputStream is = new ObjectInputStream(socket.getInputStream());) {
 
 			SOSPFPacket inPacket, outPacket;
 
@@ -89,14 +108,12 @@ public class ClientThread extends Thread {
 			os.writeObject(outPacket);
 
 			// assume it worked!!!
-		} catch (UnknownHostException e) {
-			System.err.println("Don't know about host " + dest.getProcessIPAddress());
-			System.exit(1);
 		} catch (IOException e) {
 			System.err.println("Couldn't get I/O for the connection to " + dest.getProcessIPAddress());
 			System.exit(1);
 		} catch (ClassNotFoundException e) {
 			System.err.println("Could't read packet as an SOSPFPacket. Should never get this error...");
+			System.exit(1);
 		}
 	}
 
@@ -104,17 +121,15 @@ public class ClientThread extends Thread {
 	 * Protocol for requesting that a remote server add a link to us
 	 */
 	public void sendAddLink() {
-		try (
-			Socket socket = new Socket(dest.getProcessIPAddress(), dest.getProcessPortNumber());
-			ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
-			ObjectInputStream is = new ObjectInputStream(socket.getInputStream());) {
+		try (Socket socket = new Socket(dest.getProcessIPAddress(), dest.getProcessPortNumber());
+				ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
+				ObjectInputStream is = new ObjectInputStream(socket.getInputStream());) {
 
 			SOSPFPacket inPacket, outPacket;
-			
+
 			outPacket = new SOSPFPacket(MessageType.ADDLINK, source.getProcessIPAddress(),
-					source.getProcessPortNumber(), source.getSimulatedIPAddress());
-			outPacket.setWeight(weight);
-			
+					source.getProcessPortNumber(), source.getSimulatedIPAddress(), weight);
+
 			// send ADDLINK request to destination router
 			os.writeObject(outPacket);
 
@@ -130,15 +145,12 @@ public class ClientThread extends Thread {
 			} else {
 				System.out.println("Router at " + dest.getSimulatedIPAddress() + " successfully added link");
 			}
-
-		} catch (UnknownHostException e) {
-			System.err.println("Don't know about host " + dest.getProcessIPAddress());
-			System.exit(1);
 		} catch (IOException e) {
 			System.err.println("Couldn't get I/O for the connection to " + dest.getProcessIPAddress());
 			System.exit(1);
 		} catch (ClassNotFoundException e) {
 			System.err.println("Could't read packet as an SOSPFPacket. Should never get this error...");
+			System.exit(1);
 		}
 	}
 
@@ -146,44 +158,66 @@ public class ClientThread extends Thread {
 	 * Protocol for communicating an LSAUPDATE to a remote server
 	 */
 	public void sendLsaUpdate() {
-		try (
-			// create a socket connection to the server (pass the server hostname and port)
-			// get the output stream of the socket so we can write to the server
-			// get the input stream of the socket so we can read from the server
-			Socket socket = new Socket(dest.getProcessIPAddress(), dest.getProcessPortNumber());
-			ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
-			ObjectInputStream is = new ObjectInputStream(socket.getInputStream());) {
-			
+		try (Socket socket = new Socket(dest.getProcessIPAddress(), dest.getProcessPortNumber());
+				ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
+				ObjectInputStream is = new ObjectInputStream(socket.getInputStream());) {
+
 			SOSPFPacket inPacket, outPacket;
-			
-			// create the LSA Vector using the HashMap in LinkStateDatabase of the router
-			Vector<LSA> lsaArray = new Vector<LSA> ();
-			HashMap<String, LSA> lsaMap = this.router.getLsd().get_Store();
-			for (LSA value : lsaMap.values()) {
-				lsaArray.addElement(value);
+
+			// create the LSA Vector to be passed in the packet using the
+			// HashMap in LinkStateDatabase of the router
+			Vector<LSA> lsaArray = new Vector<LSA>();
+			for (LSA lsa : this.router.getLsd().get_Store().values()) {
+				lsaArray.addElement(lsa);
 			}
-			// create the packet and send LSAUPDATE request to destination router
-			outPacket = new SOSPFPacket(MessageType.LSAUPDATE, source.getProcessIPAddress(), source.getProcessPortNumber(), source.getSimulatedIPAddress());
-			outPacket.setLsaArray(lsaArray);
+
+			// create the packet and send LSAUPDATE request to destination
+			// router
+			outPacket = new SOSPFPacket(MessageType.LSAUPDATE, source.getProcessIPAddress(),
+					source.getProcessPortNumber(), source.getSimulatedIPAddress(), lsaArray);
 			os.writeObject(outPacket);
 
 			// await a response (SUCCESS or ERROR)
 			inPacket = (SOSPFPacket) is.readObject();
-			
-			if (inPacket.getMessageType() == MessageType.SUCCESS) {
-				System.out.println("Successfully update LinkStateDatabase at router " + dest.getSimulatedIPAddress());
-			} else {
-				System.err.println("Error during LinkStateDatabase update");
-			}
 
-		} catch (UnknownHostException e) {
-			System.err.println("Don't know about host " + dest.getProcessIPAddress());
-			System.exit(1);
+			if (inPacket.getMessageType() == MessageType.SUCCESS) {
+				System.out.println("Successfully sent LSAUPDATE to router " + dest.getSimulatedIPAddress());
+			} else {
+				System.err.println("Error sending LSAUPDATE to router " + dest.getSimulatedIPAddress());
+			}
 		} catch (IOException e) {
 			System.err.println("Couldn't get I/O for the connection to " + dest.getProcessIPAddress());
 			System.exit(1);
 		} catch (ClassNotFoundException e) {
 			System.err.println("Could't read packet as an SOSPFPacket. Should never get this error...");
+			System.exit(1);
+		}
+	}
+
+	public void forwardLsaUpdate() {
+		try (Socket socket = new Socket(dest.getProcessIPAddress(), dest.getProcessPortNumber());
+				ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
+				ObjectInputStream is = new ObjectInputStream(socket.getInputStream());) {
+
+			SOSPFPacket inPacket;
+
+			// pass on the packet
+			os.writeObject(this.packet);
+
+			// await a response (SUCCESS or ERROR)
+			inPacket = (SOSPFPacket) is.readObject();
+
+			if (inPacket.getMessageType() == MessageType.SUCCESS) {
+				System.out.println("Successfully forwarded LSAUPDATE to router " + dest.getSimulatedIPAddress());
+			} else {
+				System.err.println("Error forwarding LSAUPDATE to router " + dest.getSimulatedIPAddress());
+			}
+		} catch (IOException e) {
+			System.err.println("Couldn't get I/O for the connection to " + dest.getProcessIPAddress());
+			System.exit(1);
+		} catch (ClassNotFoundException e) {
+			System.err.println("Could't read packet as an SOSPFPacket. Should never get this error...");
+			System.exit(1);
 		}
 	}
 
