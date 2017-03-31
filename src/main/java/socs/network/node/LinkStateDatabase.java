@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.PriorityQueue;
+import java.util.Vector;
 
 import socs.network.message.LSA;
 import socs.network.message.LinkDescription;
@@ -224,6 +225,29 @@ public class LinkStateDatabase {
 		LinkedList<Edge> newEdges = (LinkedList<Edge>) edges.clone();
 		newEdges.add(e);
 		return newEdges;
+	}
+
+	// public methods
+
+	/**
+	 * Returns true if this LSD contains more LSA entries that in the lsaArray
+	 */
+	public boolean containsMore(Vector<LSA> lsaArray) {
+		HashMap<String, LSA> other = mapify(lsaArray);
+		for (String originIp : this._store.keySet()) {
+			if (!other.containsKey(originIp)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private HashMap<String, LSA> mapify(Vector<LSA> lsaArray) {
+		HashMap<String, LSA> map = new HashMap<String, LSA>();
+		for (LSA l : lsaArray) {
+			map.put(l.getOriginIp(), l);
+		}
+		return map;
 	}
 
 	// Getters and setters

@@ -256,12 +256,18 @@ public class Router {
 	 *            - the SOSPFPacket received by the ServerThread
 	 */
 	public synchronized void performLsaUpdate(SOSPFPacket packet) {
-		HashMap<String, LSA> lsaMap = lsd.get_Store();
+		HashMap<String, LSA> lsaMap = this.lsd.get_Store();
 		
 		Vector<LSA> lsaArray = packet.getLsaArray();
 
 		boolean didUpdate = false;
 
+		// TODO modify this to also check and see if this router has any LSAs in
+		// its lsadatabase that are not in lsaArray below. If this is the case,
+		// then this router should also send out an LSAUPDATE of its own
+		// targeted at the sending node. It should do this after updating its
+		// own LSADatabase with the sending node's data, so that the sending
+		// node doesn't propagate any out of date data
 		for (LSA lsa : lsaArray) {
 			// if the HashMap already contains an LSA with same originating router
 			if (lsaMap.containsKey(lsa.getOriginIp())) {
@@ -277,11 +283,18 @@ public class Router {
 			}
 		}
 		
-		// propagate the LSAUPDATE message to all neighbor routers (except the
-		// node that sent this node the update) provided it contained new
-		// information
+
 		if (didUpdate) {
+			// propagate the LSAUPDATE message to all neighbor routers
 			this.propagateLsaUpdate(packet);
+
+			// if the sending router does not have information that this router
+			// does, then trigger an LSAUPDATE from this router back to the
+			// sending router
+			if (this.lsd.containsMore(lsaArray)) {
+				// TODO trigger TARGETTED LSAUPDATE from this router just back
+				// to the sending router, not to all neighbors
+			}
 		}
 	}
 
