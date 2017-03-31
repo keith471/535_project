@@ -22,6 +22,7 @@ public class ClientThread extends Thread {
 	private int linkPort;
 	private int weight;
 	private SOSPFPacket packet;
+	private boolean sendBack;
 
 	public ClientThread(Router router, Protocol protocol, RouterDescription source, RouterDescription dest) {
 		this.router = router;
@@ -42,7 +43,6 @@ public class ClientThread extends Thread {
 	 */
 	@Override
 	public void run() {
-
 		switch (this.protocol) {
 		case HANDSHAKE:
 			handshake();
@@ -55,6 +55,9 @@ public class ClientThread extends Thread {
 			break;
 		case LSAUPDATEFORWARD:
 			forwardLsaUpdate();
+			break;
+		case LSAUPDATESENDBACK:
+			sendBackLsaUpdate();
 			break;
 		default:
 			System.err.println("ERROR: client instantiated with an unexpected protocol. This should never happen.");
@@ -174,7 +177,7 @@ public class ClientThread extends Thread {
 			// create the packet and send LSAUPDATE request to destination
 			// router
 			outPacket = new SOSPFPacket(MessageType.LSAUPDATE, source.getProcessIPAddress(),
-					source.getProcessPortNumber(), source.getSimulatedIPAddress(), lsaArray);
+					source.getProcessPortNumber(), source.getSimulatedIPAddress(), lsaArray, this.sendBack);
 			os.writeObject(outPacket);
 
 			// await a response (SUCCESS or ERROR)
@@ -221,6 +224,42 @@ public class ClientThread extends Thread {
 		}
 	}
 
+	public void sendBackLsaUpdate() {
+		try (Socket socket = new Socket(dest.getProcessIPAddress(), dest.getProcessPortNumber());
+				ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
+				ObjectInputStream is = new ObjectInputStream(socket.getInputStream());) {
+
+			SOSPFPacket inPacket, outPacket;
+
+			// create the LSA Vector to be passed in the packet using the
+			// HashMap in LinkStateDatabase of the router
+			Vector<LSA> lsaArray = new Vector<LSA>();
+			for (LSA lsa : this.router.getLsd().get_Store().values()) {
+				lsaArray.addElement(lsa);
+			}
+
+			// create the packet and send LSAUPDATESENDBACK
+			outPacket = new SOSPFPacket(MessageType.LSAUPDATESENDBACK, source.getProcessIPAddress(),
+					source.getProcessPortNumber(), source.getSimulatedIPAddress(), lsaArray, false);
+			os.writeObject(outPacket);
+
+			// await a response (SUCCESS or ERROR)
+			inPacket = (SOSPFPacket) is.readObject();
+
+			if (inPacket.getMessageType() == MessageType.SUCCESS) {
+				System.out.println("Successfully sent LSAUPDATESENDBACK to router " + dest.getSimulatedIPAddress());
+			} else {
+				System.err.println("Error sending LSAUPDATESENDBACK to router " + dest.getSimulatedIPAddress());
+			}
+		} catch (IOException e) {
+			System.err.println("Couldn't get I/O for the connection to " + dest.getProcessIPAddress());
+			System.exit(1);
+		} catch (ClassNotFoundException e) {
+			System.err.println("Could't read packet as an SOSPFPacket. Should never get this error...");
+			System.exit(1);
+		}
+	}
+
 	/////////////////////////////////////////////////////////////////////////////////////////////////
 	// GETTERS AND SETTERS
 	/////////////////////////////////////////////////////////////////////////////////////////////////
@@ -255,6 +294,10 @@ public class ClientThread extends Thread {
 
 	public void setWeight(int weight) {
 		this.weight = weight;
+	}
+
+	public void setSendBack(boolean sendBack) {
+		this.sendBack = sendBack;
 	}
 
 }

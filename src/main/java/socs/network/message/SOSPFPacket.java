@@ -28,6 +28,9 @@ public class SOSPFPacket implements Serializable {
 
 	// used by LSAUPDATE
 	private Vector<LSA> lsaArray;
+	private boolean sendBack; // a boolean that specifies whether the next node
+								// in the chain should send data back to the
+								// sending node
 
 	private String errorMsg;
 	
@@ -56,13 +59,15 @@ public class SOSPFPacket implements Serializable {
 		this.precedingNodeIP = srcIP;
 	}
 	
-	public SOSPFPacket(MessageType mt, String srcProcessIP, int srcProcessPort, String srcIP, Vector<LSA> lsaArray) {
+	public SOSPFPacket(MessageType mt, String srcProcessIP, int srcProcessPort, String srcIP, Vector<LSA> lsaArray,
+			boolean sendBack) {
 		this.messageType = mt;
 		this.srcProcessIP = srcProcessIP;
 		this.srcProcessPort = srcProcessPort;
 		this.srcIP = srcIP;
 		this.precedingNodeIP = srcIP;
 		this.lsaArray = lsaArray;
+		this.sendBack = sendBack;
 	}
 
 	public SOSPFPacket(MessageType mt, String srcProcessIP, int srcProcessPort, String srcIP, int weight) {
@@ -146,5 +151,13 @@ public class SOSPFPacket implements Serializable {
 
 	public int getWeight() {
 		return weight;
+	}
+
+	public boolean getSendBack() {
+		return this.sendBack;
+	}
+
+	public void setSendBack(boolean sendBack) {
+		this.sendBack = sendBack;
 	}
 }

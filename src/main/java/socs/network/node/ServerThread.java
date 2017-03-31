@@ -48,6 +48,9 @@ public class ServerThread extends Thread {
 			case LSAUPDATE:
 				processLsaUpdate(inputPacket, os);
 				break;
+			case LSAUPDATESENDBACK:
+				processLsaUpdateSendBack(inputPacket, os);
+				break;
 			case ADDLINK:
 				handleAddLink(inputPacket, os);
 				break;
@@ -157,6 +160,13 @@ public class ServerThread extends Thread {
 		this.router.performLsaUpdate(packet);
 		
 		// send back a success message
+		SOSPFPacket responsePacket = new SOSPFPacket();
+		os.writeObject(responsePacket);
+	}
+
+	private void processLsaUpdateSendBack(SOSPFPacket packet, ObjectOutputStream os) throws IOException {
+		this.router.performLsaUpdateSendBack(packet);
+
 		SOSPFPacket responsePacket = new SOSPFPacket();
 		os.writeObject(responsePacket);
 	}

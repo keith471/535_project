@@ -1,5 +1,5 @@
 package socs.network.message;
 
 public enum MessageType {
-	HELLO, LSAUPDATE, ADDLINK, SUCCESS, ERROR
+	HELLO, LSAUPDATE, LSAUPDATESENDBACK, ADDLINK, SUCCESS, ERROR
 }

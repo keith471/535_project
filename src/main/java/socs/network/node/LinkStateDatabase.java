@@ -39,6 +39,37 @@ public class LinkStateDatabase {
 		_store.put(lsa.getOriginIp(), lsa);
 	}
 
+	/**
+	 * Updates this LDS with the contents of the lsaArray. If there are no new
+	 * contents, then this returns false. Else it returns true.
+	 * 
+	 * @param lsaArray
+	 * @return
+	 */
+	public boolean update(Vector<LSA> lsaArray) {
+
+		boolean didUpdate = false;
+
+		// update this LSD with any LSAs in the array that we don't already have
+		for (LSA lsa : lsaArray) {
+			// if the HashMap already contains an LSA with same originating
+			// router
+			if (this._store.containsKey(lsa.getOriginIp())) {
+				// check if the lsaSeqNumber of the received LSA is greater than
+				// the current. if it is, replace the old LSA
+				if (this._store.get(lsa.getOriginIp()).getLsaSeqNumber() < lsa.getLsaSeqNumber()) {
+					this._store.replace(lsa.getOriginIp(), lsa);
+					didUpdate = true;
+				}
+			} else { // otherwise add the new LSA
+				this._store.put(lsa.getOriginIp(), lsa);
+				didUpdate = true;
+			}
+		}
+
+		return didUpdate;
+	}
+
 	////////////////////////////////////////////////////////////////////////////
 	// Some inner helper classes for running Dijkstra's algorithm
 	////////////////////////////////////////////////////////////////////////////
@@ -156,6 +187,10 @@ public class LinkStateDatabase {
 			// get all the neighbors of curr (we can get them by accessing curr's LSA)
 			lsa = this._store.get(curr.getDestinationIp());
 			
+			if (lsa == null) {
+				return "No path found. The router you are looking for may not have yet been started.";
+			}
+
 			// for each neighbor...
 			PathDescription tPath;
 			String neighborIP;

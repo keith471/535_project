@@ -2,7 +2,6 @@ package socs.network.node;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.util.HashMap;
 import java.util.Vector;
 
 import socs.network.exceptions.DuplicateLinkException;
@@ -11,6 +10,7 @@ import socs.network.exceptions.NoSuchLinkException;
 import socs.network.exceptions.SelfLinkException;
 import socs.network.message.LSA;
 import socs.network.message.LinkDescription;
+import socs.network.message.MessageType;
 import socs.network.message.SOSPFPacket;
 import socs.network.util.Configuration;
 
@@ -74,10 +74,14 @@ public class Router {
 		// TODO remove the link between this router and the remote router
 		// connected at port number
 		// does this require reaching out to the remote router to tell it to
-		// also remove its link? Probably
+		// also remove its link? Probably --> actually, should definitely do
+		// this.
 
 		// send LSAUPDATE out to all neighbors
-		this.triggerLsaUpdate();
+		// set sendBack to false
+		if (this.isStarted()) {
+			this.triggerLsaUpdate(false);
+		}
 	}
 
 	/**
@@ -139,8 +143,12 @@ public class Router {
 		// have already been established in processAttach, and that's really all
 		// we need.
 
+		// update this router's status to two-way
+		this.rd.setStatus(RouterStatus.TWO_WAY);
+
 		// send LSAUPDATE out to all neighbors
-		this.triggerLsaUpdate();
+		// should set sendBack to true
+		this.triggerLsaUpdate(true);
 	}
 
 	/**
@@ -165,10 +173,17 @@ public class Router {
 	 *            - the cost of transmitting through this link
 	 */
 	private void processConnect(String processIP, short processPort, String simulatedIP, short weight) {
+		if (!this.isStarted()) {
+			System.err.println(
+					"ERROR: This router is not yet started. You must start this router before using this command.");
+			return;
+		}
 
 		// TODO
 
-		this.triggerLsaUpdate();
+		// can only be called after start has been called
+		// set sendBack to false
+		this.triggerLsaUpdate(false);
 	}
 
 	/**
@@ -191,10 +206,15 @@ public class Router {
 	 * NOTE: This DOES trigger synchronization of the link state database
 	 */
 	private void processQuit() {
+		// TODO tell all the routers that you're connected to to remove their
+		// links to you
 
-		// TODO
+		// set sendBack to false
+		if (this.isStarted()) {
+			this.triggerLsaUpdate(false);
+		}
 
-		this.triggerLsaUpdate();
+		System.exit(0);
 	}
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -256,46 +276,33 @@ public class Router {
 	 *            - the SOSPFPacket received by the ServerThread
 	 */
 	public synchronized void performLsaUpdate(SOSPFPacket packet) {
-		HashMap<String, LSA> lsaMap = this.lsd.get_Store();
 		
-		Vector<LSA> lsaArray = packet.getLsaArray();
+		boolean didUpdate = this.lsd.update(packet.getLsaArray());
 
-		boolean didUpdate = false;
-
-		// TODO modify this to also check and see if this router has any LSAs in
-		// its lsadatabase that are not in lsaArray below. If this is the case,
-		// then this router should also send out an LSAUPDATE of its own
-		// targeted at the sending node. It should do this after updating its
-		// own LSADatabase with the sending node's data, so that the sending
-		// node doesn't propagate any out of date data
-		for (LSA lsa : lsaArray) {
-			// if the HashMap already contains an LSA with same originating router
-			if (lsaMap.containsKey(lsa.getOriginIp())) {
-				// check if the lsaSeqNumber of the received LSA is greater than the current
-				// if it is, replace the old LSA
-				if (lsaMap.get(lsa.getOriginIp()).getLsaSeqNumber() < lsa.getLsaSeqNumber()) {
-					lsaMap.replace(lsa.getOriginIp(), lsa);
-					didUpdate = true;
-				}
-			} else { // otherwise add the new LSA
-				lsaMap.put(lsa.getOriginIp(), lsa);
-				didUpdate = true;
-			}
-		}
-		
-
-		if (didUpdate) {
+		if (didUpdate && this.isStarted()) {
 			// propagate the LSAUPDATE message to all neighbor routers
 			this.propagateLsaUpdate(packet);
 
-			// if the sending router does not have information that this router
-			// does, then trigger an LSAUPDATE from this router back to the
-			// sending router
-			if (this.lsd.containsMore(lsaArray)) {
-				// TODO trigger TARGETTED LSAUPDATE from this router just back
-				// to the sending router, not to all neighbors
+			if (packet.getSendBack()) {
+				// if the sending router does not have information that this
+				// router does, then trigger an LSAUPDATE from this router back
+				// to the sending router
+				if (this.lsd.containsMore(packet.getLsaArray())) {
+					this.triggerTargettedLsaUpdate(packet.getPrecedingNodeIP());
+				}
 			}
 		}
+	}
+
+	/**
+	 * Called by ServerThread in response to receipt of a LSAUPDATESENDBACK
+	 * packet. Updates the LinkStateDatabase with any new LSAs in the LSAUPDATE
+	 * 
+	 * @param packet
+	 *            - the SOSPFPacket received by the ServerThread
+	 */
+	public synchronized void performLsaUpdateSendBack(SOSPFPacket packet) {
+		this.lsd.update(packet.getLsaArray());
 	}
 
 	/**
@@ -364,10 +371,21 @@ public class Router {
 		throw new NoSuchLinkException();
 	}
 
-	private void triggerLsaUpdate() {
+	private void triggerLsaUpdate(boolean sendBack) {
 		for (int i = 0; i < this.ports.length; i++) {
 			if (this.ports[i] != null) {
-				this.sendLsaUpdate(ports[i]);
+				this.sendLsaUpdate(ports[i], sendBack);
+			}
+		}
+	}
+
+	private void triggerTargettedLsaUpdate(String target) {
+		for (int i = 0; i < this.ports.length; i++) {
+			if (this.ports[i] != null) {
+				if (this.ports[i].getRouter2().getSimulatedIPAddress().equals(target)) {
+					this.sendBackLsaUpdate(ports[i]);
+					break;
+				}
 			}
 		}
 	}
@@ -387,6 +405,10 @@ public class Router {
 		}
 	}
 
+	private boolean isStarted() {
+		return this.rd.getStatus() == RouterStatus.TWO_WAY;
+	}
+
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// CLIENT SPAWNERS
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -400,8 +422,10 @@ public class Router {
 	 * 
 	 * @param l
 	 */
-	public void sendLsaUpdate(Link l) {
-		new ClientThread(this, Protocol.LSAUPDATE, l.getRouter1(), l.getRouter2()).start();
+	public void sendLsaUpdate(Link l, boolean sendBack) {
+		ClientThread ct = new ClientThread(this, Protocol.LSAUPDATE, l.getRouter1(), l.getRouter2());
+		ct.setSendBack(sendBack);
+		ct.start();
 	}
 
 	/**
@@ -411,10 +435,27 @@ public class Router {
 	 *            - the packet received by this router
 	 */
 	public void forwardLsaUpdate(Link l, SOSPFPacket packet) {
-		// update the packet with this router's IP as the precedingNodeIP
-		packet.setPrecedingNodeIP(this.rd.getSimulatedIPAddress());
+		// it does not suffice to just pass on the packet we received, as it
+		// could be from a router that was just added to the already-established
+		// network. Instead, we need to pass on our entire link state database,
+		// which now includes the updates contained in the packet we received.
+
+		// copy our LSD into an array
+		Vector<LSA> lsaArray = new Vector<LSA>();
+		for (LSA lsa : this.lsd.get_Store().values()) {
+			lsaArray.addElement(lsa);
+		}
+		// create the new packet to forward along
+		SOSPFPacket copy = new SOSPFPacket(MessageType.LSAUPDATE, packet.getSrcProcessIP(),
+				packet.getSrcProcessPort(), packet.getSrcIP(), lsaArray, false);
+		// override preceding node IP with this node's IP
+		copy.setPrecedingNodeIP(this.rd.getSimulatedIPAddress());
 		// forward it using a ClientThread
-		new ClientThread(packet, l.getRouter2()).start();
+		new ClientThread(copy, l.getRouter2()).start();
+	}
+
+	public void sendBackLsaUpdate(Link l) {
+		new ClientThread(this, Protocol.LSAUPDATESENDBACK, l.getRouter1(), l.getRouter2()).start();
 	}
 
 	public void sendAddLink(Link l, int port, int weight) {
