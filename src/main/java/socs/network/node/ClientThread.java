@@ -119,7 +119,7 @@ public class ClientThread extends Thread {
 			System.err.println("Couldn't get I/O for the connection to " + dest.getProcessIPAddress());
 			System.exit(1);
 		} catch (ClassNotFoundException e) {
-			System.err.println("Could't read packet as an SOSPFPacket. Should never get this error...");
+			System.err.println("Couldn't read packet as an SOSPFPacket. Should never get this error...");
 			System.exit(1);
 		}
 	}
@@ -156,7 +156,7 @@ public class ClientThread extends Thread {
 			System.err.println("Couldn't get I/O for the connection to " + dest.getProcessIPAddress());
 			System.exit(1);
 		} catch (ClassNotFoundException e) {
-			System.err.println("Could't read packet as an SOSPFPacket. Should never get this error...");
+			System.err.println("Couldn't read packet as an SOSPFPacket. Should never get this error...");
 			System.exit(1);
 		}
 	}
@@ -181,7 +181,7 @@ public class ClientThread extends Thread {
 			if (inPacket.getMessageType() == MessageType.ERROR) {
 				// something went wrong
 				System.err.println("ERROR: router at " + dest.getSimulatedIPAddress()
-						+ " failed to its link to us with error message: " + inPacket.getErrorMsg());
+						+ " failed to remove its link to us with error message: " + inPacket.getErrorMsg());
 			} else {
 				System.out.println("Router at " + dest.getSimulatedIPAddress() + " successfully removed link");
 				// everything worked
@@ -194,7 +194,7 @@ public class ClientThread extends Thread {
 			System.err.println("Couldn't get I/O for the connection to " + dest.getProcessIPAddress());
 			System.exit(1);
 		} catch (ClassNotFoundException e) {
-			System.err.println("Could't read packet as an SOSPFPacket. Should never get this error...");
+			System.err.println("Couldn't read packet as an SOSPFPacket. Should never get this error...");
 			System.exit(1);
 		}
 	}
@@ -234,7 +234,7 @@ public class ClientThread extends Thread {
 			System.err.println("Couldn't get I/O for the connection to " + dest.getProcessIPAddress());
 			System.exit(1);
 		} catch (ClassNotFoundException e) {
-			System.err.println("Could't read packet as an SOSPFPacket. Should never get this error...");
+			System.err.println("Couldn't read packet as an SOSPFPacket. Should never get this error...");
 			System.exit(1);
 		}
 	}
@@ -261,7 +261,7 @@ public class ClientThread extends Thread {
 			System.err.println("Couldn't get I/O for the connection to " + dest.getProcessIPAddress());
 			System.exit(1);
 		} catch (ClassNotFoundException e) {
-			System.err.println("Could't read packet as an SOSPFPacket. Should never get this error...");
+			System.err.println("Couldn't read packet as an SOSPFPacket. Should never get this error...");
 			System.exit(1);
 		}
 	}
@@ -297,7 +297,7 @@ public class ClientThread extends Thread {
 			System.err.println("Couldn't get I/O for the connection to " + dest.getProcessIPAddress());
 			System.exit(1);
 		} catch (ClassNotFoundException e) {
-			System.err.println("Could't read packet as an SOSPFPacket. Should never get this error...");
+			System.err.println("Couldn't read packet as an SOSPFPacket. Should never get this error...");
 			System.exit(1);
 		}
 	}

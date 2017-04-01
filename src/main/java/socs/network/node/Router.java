@@ -180,7 +180,7 @@ public class Router {
 		this.processAttach(processIP, processPort, simulatedIP, weight);
 
 		// set sendBack to false, since we've already been started up
-		this.triggerLsaUpdate(false);
+		this.triggerLsaUpdate(true);
 	}
 
 	/**
@@ -559,8 +559,13 @@ public class Router {
 				} else if (command.startsWith("quit")) {
 					processQuit();
 				} else if (command.startsWith("attach ")) {
-					String[] cmdLine = command.split(" ");
-					processAttach(cmdLine[1], Short.parseShort(cmdLine[2]), cmdLine[3], Short.parseShort(cmdLine[4]));
+					if (!this.isStarted()) {
+						String[] cmdLine = command.split(" ");
+						processAttach(cmdLine[1], Short.parseShort(cmdLine[2]), cmdLine[3], Short.parseShort(cmdLine[4]));
+					}
+					else {
+						System.err.println("ERROR: You cannot run 'attach' after a router has been started. Please use 'connect' instead.");
+					}
 				} else if (command.equals("start")) {
 					processStart();
 				} else if (command.startsWith("connect ")) {
