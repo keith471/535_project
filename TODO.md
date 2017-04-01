@@ -1,5 +1,20 @@
 # TODOS
 
+- processConnect
+
+- processDisconnect
+- processQuit
+
+
+Hey man so adding new nodes to established networks works fine as long as we have a node send out LSAUPDATEs in response to an ADDLINK message. So if we have A and B already established and connected and later add C and attach it to B then everything works fine as long as B sends out LSAUPDATEs in response to C sending it an ADDLINK.
+
+The downside here is that `attach` has the side effect of causing other nodes to send out LSAUPDATEs. So node A will receive an LSAUPDATE from node B that shows that B now can reach C even before we call start on C. But it does work as expected.
+
+Another solution would be to allow node B to send an LSAUPDATE back to node C, even when node C is the one to send the LSAUPDATE to B
+We can allow this if the receiving node has LSA entries in its LSdatabase that the sending node does not have. We can check for this scenario by having B, upon receiving an LSA update from C, iterate through the LSAs in the LSA update and check to see if B has LSA entries in its database that were not contained in the update.
+
+Also, on another unrelated note, but I want to say it anyway before I forget, we should probably add a check before sending out any message from a port. The check would be that the link at the port is 2-way. That would indicate that both nodes of the link have run `start`, and thus are "up and running". Otherwise, I think we could ignore them. I doubt this is necessary at all, but is probably more realistic
+
 We need to have multiple "clients"
 
 ## Now

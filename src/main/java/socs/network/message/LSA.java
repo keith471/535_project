@@ -49,6 +49,21 @@ public class LSA implements Serializable {
 		this.links.add(ld);
 	}
 
+	public void removeLink(String remoteIp) {
+		int i;
+		boolean found = false;
+		for (i = 0; i < this.links.size(); i++) {
+			if (this.links.get(i).getDestinationIp().equals(remoteIp)) {
+				found = true;
+				break;
+			}
+		}
+
+		if (found) {
+			this.links.remove(i);
+		}
+	}
+
 	// Setters and Getters
 	public String getOriginIp() {
 		return originIp;

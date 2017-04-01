@@ -48,8 +48,14 @@ public class ServerThread extends Thread {
 			case LSAUPDATE:
 				processLsaUpdate(inputPacket, os);
 				break;
+			case LSAUPDATESENDBACK:
+				processLsaUpdateSendBack(inputPacket, os);
+				break;
 			case ADDLINK:
 				handleAddLink(inputPacket, os);
+				break;
+			case REMOVELINK:
+				handleRemoveLink(inputPacket, os);
 				break;
 			default:
 				System.err.println("ERROR: server received an unexpected SOSPFPacket. This should never happen.");
@@ -113,7 +119,6 @@ public class ServerThread extends Thread {
 	 * @throws IOException
 	 */
 	private void handleAddLink(SOSPFPacket packet, ObjectOutputStream os) throws IOException {
-
 		try {
 			// need to get an available port and add the link all in one go
 			RouterDescription rd2 = new RouterDescription(packet.getSrcProcessIP(), packet.getSrcProcessPort(),
@@ -123,8 +128,14 @@ public class ServerThread extends Thread {
 			// create new LinkDescription and add it to the LinkStateDatabase
 			LinkDescription ld = new LinkDescription(rd2.getSimulatedIPAddress(), port, packet.getWeight());
 			this.router.addLinkDescriptionToLinkStateDatabase(ld);
+			// even though we've changed our LSD, given the nature of
+			// Router.forwardLsaUpdate(Link, SOSPFPacket), we know that we don't
+			// have to send out LSAUPDATEs ourself since we can and should just
+			// wait for the LSAUPDATE from the router that requested we add this
+			// link. that's why it suffices to just add the link description to
+			// the LSD as above. we need not do anything else.
 			
-			// send back success message?
+			// send back success message
 			SOSPFPacket responsePacket = new SOSPFPacket();
 			os.writeObject(responsePacket);
 		} catch (NoAvailablePortsException ex) {
@@ -144,6 +155,24 @@ public class ServerThread extends Thread {
 	}
 
 	/**
+	 * A remote router connected to us has requested that we remove out link to
+	 * it. We need to remove the link from our ports array and also from our
+	 * link-state database. This means we also need to trigger an LSAUPDATE.
+	 * 
+	 * @param packet
+	 * @param os
+	 * @throws IOException
+	 */
+	private void handleRemoveLink(SOSPFPacket packet, ObjectOutputStream os) throws IOException {
+		// remove the link
+		this.router.reactToRemoveLinkRequest(packet.getSrcIP());
+
+		// send back success message
+		SOSPFPacket responsePacket = new SOSPFPacket();
+		os.writeObject(responsePacket);
+	}
+
+	/**
 	 * The server received a request to connect followed by an LSAUPDATE. This
 	 * means the remote client is propagating an LSAUPDATE to us, so we should
 	 * update our Router's LinkStateDatabase
@@ -157,6 +186,13 @@ public class ServerThread extends Thread {
 		this.router.performLsaUpdate(packet);
 		
 		// send back a success message
+		SOSPFPacket responsePacket = new SOSPFPacket();
+		os.writeObject(responsePacket);
+	}
+
+	private void processLsaUpdateSendBack(SOSPFPacket packet, ObjectOutputStream os) throws IOException {
+		this.router.performLsaUpdateSendBack(packet);
+
 		SOSPFPacket responsePacket = new SOSPFPacket();
 		os.writeObject(responsePacket);
 	}

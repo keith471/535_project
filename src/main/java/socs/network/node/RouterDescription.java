@@ -14,6 +14,7 @@ public class RouterDescription {
 		this.processIPAddress = processIPAddress;
 		this.processPortNumber = processPortNumber;
 		this.simulatedIPAddress = simulatedIPAddress;
+		this.status = RouterStatus.OFF;
 	}
 
 	// GETTERS AND SETTERS

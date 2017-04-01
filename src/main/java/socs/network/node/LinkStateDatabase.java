@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.PriorityQueue;
+import java.util.Vector;
 
 import socs.network.message.LSA;
 import socs.network.message.LinkDescription;
@@ -36,6 +37,37 @@ public class LinkStateDatabase {
 		LinkDescription ld = new LinkDescription(rd.getSimulatedIPAddress(), -1, 0);
 		lsa.addLink(ld);
 		_store.put(lsa.getOriginIp(), lsa);
+	}
+
+	/**
+	 * Updates this LDS with the contents of the lsaArray. If there are no new
+	 * contents, then this returns false. Else it returns true.
+	 * 
+	 * @param lsaArray
+	 * @return
+	 */
+	public boolean update(Vector<LSA> lsaArray) {
+
+		boolean didUpdate = false;
+
+		// update this LSD with any LSAs in the array that we don't already have
+		for (LSA lsa : lsaArray) {
+			// if the HashMap already contains an LSA with same originating
+			// router
+			if (this._store.containsKey(lsa.getOriginIp())) {
+				// check if the lsaSeqNumber of the received LSA is greater than
+				// the current. if it is, replace the old LSA
+				if (this._store.get(lsa.getOriginIp()).getLsaSeqNumber() < lsa.getLsaSeqNumber()) {
+					this._store.replace(lsa.getOriginIp(), lsa);
+					didUpdate = true;
+				}
+			} else { // otherwise add the new LSA
+				this._store.put(lsa.getOriginIp(), lsa);
+				didUpdate = true;
+			}
+		}
+
+		return didUpdate;
 	}
 
 	////////////////////////////////////////////////////////////////////////////
@@ -155,6 +187,10 @@ public class LinkStateDatabase {
 			// get all the neighbors of curr (we can get them by accessing curr's LSA)
 			lsa = this._store.get(curr.getDestinationIp());
 			
+			if (lsa == null) {
+				return "No path found. The router you are looking for may not have yet been started.";
+			}
+
 			// for each neighbor...
 			PathDescription tPath;
 			String neighborIP;
@@ -224,6 +260,29 @@ public class LinkStateDatabase {
 		LinkedList<Edge> newEdges = (LinkedList<Edge>) edges.clone();
 		newEdges.add(e);
 		return newEdges;
+	}
+
+	// public methods
+
+	/**
+	 * Returns true if this LSD contains more LSA entries that in the lsaArray
+	 */
+	public boolean containsMore(Vector<LSA> lsaArray) {
+		HashMap<String, LSA> other = mapify(lsaArray);
+		for (String originIp : this._store.keySet()) {
+			if (!other.containsKey(originIp)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private HashMap<String, LSA> mapify(Vector<LSA> lsaArray) {
+		HashMap<String, LSA> map = new HashMap<String, LSA>();
+		for (LSA l : lsaArray) {
+			map.put(l.getOriginIp(), l);
+		}
+		return map;
 	}
 
 	// Getters and setters
