@@ -1,5 +1,11 @@
 # TODOS
 
+- processConnect
+
+- processDisconnect
+- processQuit
+
+
 Hey man so adding new nodes to established networks works fine as long as we have a node send out LSAUPDATEs in response to an ADDLINK message. So if we have A and B already established and connected and later add C and attach it to B then everything works fine as long as B sends out LSAUPDATEs in response to C sending it an ADDLINK.
 
 The downside here is that `attach` has the side effect of causing other nodes to send out LSAUPDATEs. So node A will receive an LSAUPDATE from node B that shows that B now can reach C even before we call start on C. But it does work as expected.

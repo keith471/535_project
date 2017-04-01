@@ -2,6 +2,7 @@ package socs.network.node;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Vector;
 
 import socs.network.exceptions.DuplicateLinkException;
@@ -64,23 +65,21 @@ public class Router {
 
 	/**
 	 * remove the link between this router and the remote router connected at
-	 * portNumber Notice: this command should trigger the synchronization of
+	 * portNumber. Notice: this command should trigger the synchronization of
 	 * database
 	 *
 	 * @param portNumber
-	 *            the port number which the link attaches at
+	 *            - the port number which the link attaches at
 	 */
 	private void processDisconnect(short portNumber) {
-		// TODO remove the link between this router and the remote router
-		// connected at port number
-		// does this require reaching out to the remote router to tell it to
-		// also remove its link? Probably --> actually, should definitely do
-		// this.
-
-		// send LSAUPDATE out to all neighbors
-		// set sendBack to false
-		if (this.isStarted()) {
-			this.triggerLsaUpdate(false);
+		if (this.ports[portNumber] != null) {
+			Link l = ports[portNumber];
+			// tell the router at port portNumber to remove its link to this router
+			this.sendRemoveLink(l, portNumber);
+			// upon a successful removal of the remote link, this router will
+			// complete the process of removing its own link
+		} else {
+			System.err.println("ERROR: no link at port " + portNumber);
 		}
 	}
 
@@ -102,7 +101,6 @@ public class Router {
 	 *            - the cost of transmitting through this link
 	 */
 	private void processAttach(String processIP, short processPort, String simulatedIP, short weight) {
-
 		try {
 			// create a router description for the router to connect to
 			RouterDescription rd2 = new RouterDescription(processIP, processPort, simulatedIP);
@@ -179,10 +177,9 @@ public class Router {
 			return;
 		}
 
-		// TODO
+		this.processAttach(processIP, processPort, simulatedIP, weight);
 
-		// can only be called after start has been called
-		// set sendBack to false
+		// set sendBack to false, since we've already been started up
 		this.triggerLsaUpdate(false);
 	}
 
@@ -206,14 +203,39 @@ public class Router {
 	 * NOTE: This DOES trigger synchronization of the link state database
 	 */
 	private void processQuit() {
-		// TODO tell all the routers that you're connected to to remove their
-		// links to you
+		ArrayList<ClientThread> threads = new ArrayList<ClientThread>();
 
-		// set sendBack to false
-		if (this.isStarted()) {
-			this.triggerLsaUpdate(false);
+		// tell all the routers you're connected with to remove their links to
+		// you
+		for (int i = 0; i < this.ports.length; i++) {
+			if (this.ports[i] != null) {
+				ClientThread ct = new ClientThread(this, Protocol.REMOVELINK, this.ports[i].getRouter1(),
+						this.ports[i].getRouter2());
+				ct.setLinkPort(i);
+				ct.setSilentQuit(true);
+				threads.add(ct);
+			}
 		}
 
+		// start all the threads
+		for (ClientThread t : threads) {
+			t.start();
+		}
+
+		// upon successful removal of a link on a remote router, we remove the
+		// local link. we wait for all the client threads to terminate before
+		// doing so
+
+		for (ClientThread t : threads) {
+			try {
+				t.join();
+			} catch (InterruptedException e) {
+				System.err.println(
+						"WARNING: Main thread interrupted while waiting for client to terminate. May result in errors upon program termination.");
+			}
+		}
+
+		// all threads have joined; it is safe to exit the program
 		System.exit(0);
 	}
 
@@ -257,14 +279,16 @@ public class Router {
 	public synchronized void addLinkDescriptionToLinkStateDatabase(LinkDescription ld) {
 		// get the LSA for this router
 		LSA lsa = lsd.get_Store().get(rd.getSimulatedIPAddress());
-		if (lsa != null) {
-			// add the LinkDescription to the LSA and increment the lsaSeqNumber since we altered the LSA
-			lsa.addLink(ld);
-			lsa.incrementLsaSeqNumber();
-		} else {
-			System.err.println("Could not find matching LSA in Link State Database. This error should not occur");
-			System.exit(1);
-		}
+		// add the LinkDescription to the LSA and increment the lsaSeqNumber
+		// since we altered the LSA
+		lsa.addLink(ld);
+		lsa.incrementLsaSeqNumber();
+	}
+
+	public void removeLinkDescriptionFromLinkStateDatabase(String remoteIp) {
+		LSA lsa = lsd.get_Store().get(rd.getSimulatedIPAddress());
+		lsa.removeLink(remoteIp);
+		lsa.incrementLsaSeqNumber();
 	}
 	
 	/**
@@ -326,8 +350,33 @@ public class Router {
 		l.getRouter2().setStatus(status);
 	}
 
-	public void removeLinkAtPort(int port) {
+	public synchronized void removeLinkAtPort(int port) {
+		Link l = this.ports[port];
+
+		// remove the link from the ports array
 		this.ports[port] = null;
+
+		// remove the link description from the link state database
+		this.removeLinkDescriptionFromLinkStateDatabase(l.getRouter2().getSimulatedIPAddress());
+	}
+
+	public void reactToRemoveLinkRequest(String sourceIp) {
+		// find the port with a link to sourceIp
+		int portNumber = this.getPortTo(sourceIp);
+		
+		// remove the link and notify neighbors with a LSAUPDATE
+		this.removeLinkAndUpdateNeighbors(portNumber);
+	}
+
+	public void removeLinkAndUpdateNeighbors(int port) {
+		// remove the local link
+		this.removeLinkAtPort(port);
+
+		// send LSAUPDATE out to all neighbors, since now our LSD has changed
+		if (this.isStarted()) {
+			// sendBack is false
+			this.triggerLsaUpdate(false);
+		}
 	}
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -409,6 +458,18 @@ public class Router {
 		return this.rd.getStatus() == RouterStatus.TWO_WAY;
 	}
 
+	private int getPortTo(String ip) {
+		for (int i = 0; i < this.ports.length; i++) {
+			if (this.ports[i] != null) {
+				if (this.ports[i].getRouter2().getSimulatedIPAddress().equals(ip)) {
+					return i;
+				}
+			}
+		}
+		// will never reach this
+		return -1;
+	}
+
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// CLIENT SPAWNERS
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -465,6 +526,12 @@ public class Router {
 		ct.start();
 	}
 
+	public void sendRemoveLink(Link l, int port) {
+		ClientThread ct = new ClientThread(this, Protocol.REMOVELINK, l.getRouter1(), l.getRouter2());
+		ct.setLinkPort(port);
+		ct.start();
+	}
+
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// TERMINAL
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -496,7 +563,7 @@ public class Router {
 					processAttach(cmdLine[1], Short.parseShort(cmdLine[2]), cmdLine[3], Short.parseShort(cmdLine[4]));
 				} else if (command.equals("start")) {
 					processStart();
-				} else if (command.equals("connect ")) {
+				} else if (command.startsWith("connect ")) {
 					String[] cmdLine = command.split(" ");
 					processConnect(cmdLine[1], Short.parseShort(cmdLine[2]), cmdLine[3], Short.parseShort(cmdLine[4]));
 				} else if (command.equals("neighbors")) {

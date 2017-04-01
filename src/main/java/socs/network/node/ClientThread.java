@@ -23,6 +23,7 @@ public class ClientThread extends Thread {
 	private int weight;
 	private SOSPFPacket packet;
 	private boolean sendBack;
+	private boolean silentQuit;
 
 	public ClientThread(Router router, Protocol protocol, RouterDescription source, RouterDescription dest) {
 		this.router = router;
@@ -49,6 +50,9 @@ public class ClientThread extends Thread {
 			break;
 		case ADDLINK:
 			sendAddLink();
+			break;
+		case REMOVELINK:
+			sendRemoveLink();
 			break;
 		case LSAUPDATE:
 			sendLsaUpdate();
@@ -147,6 +151,44 @@ public class ClientThread extends Thread {
 				this.router.removeLinkAtPort(this.linkPort);
 			} else {
 				System.out.println("Router at " + dest.getSimulatedIPAddress() + " successfully added link");
+			}
+		} catch (IOException e) {
+			System.err.println("Couldn't get I/O for the connection to " + dest.getProcessIPAddress());
+			System.exit(1);
+		} catch (ClassNotFoundException e) {
+			System.err.println("Could't read packet as an SOSPFPacket. Should never get this error...");
+			System.exit(1);
+		}
+	}
+
+	/**
+	 * Protocol for requesting that a remote server remove its link to us
+	 */
+	public void sendRemoveLink() {
+		try (Socket socket = new Socket(dest.getProcessIPAddress(), dest.getProcessPortNumber());
+				ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
+				ObjectInputStream is = new ObjectInputStream(socket.getInputStream());) {
+
+			SOSPFPacket inPacket, outPacket;
+
+			outPacket = new SOSPFPacket(MessageType.REMOVELINK, source.getProcessIPAddress(),
+					source.getProcessPortNumber(), source.getSimulatedIPAddress());
+			os.writeObject(outPacket);
+
+			// await a response (SUCCESS or ERROR)
+			inPacket = (SOSPFPacket) is.readObject();
+
+			if (inPacket.getMessageType() == MessageType.ERROR) {
+				// something went wrong
+				System.err.println("ERROR: router at " + dest.getSimulatedIPAddress()
+						+ " failed to its link to us with error message: " + inPacket.getErrorMsg());
+			} else {
+				System.out.println("Router at " + dest.getSimulatedIPAddress() + " successfully removed link");
+				// everything worked
+				if (!this.silentQuit) {
+					// remove our own link to the remote router
+					this.router.removeLinkAndUpdateNeighbors(this.linkPort);
+				}
 			}
 		} catch (IOException e) {
 			System.err.println("Couldn't get I/O for the connection to " + dest.getProcessIPAddress());
@@ -300,4 +342,7 @@ public class ClientThread extends Thread {
 		this.sendBack = sendBack;
 	}
 
+	public void setSilentQuit(boolean silentQuit) {
+		this.silentQuit = silentQuit;
+	}
 }
